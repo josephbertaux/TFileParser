@@ -1,3 +1,6 @@
+#ifndef TMVA_TRAIN_H
+#define TMVA_TRAIN_H
+
 #include <cstdlib>
 #include <iostream>
 #include <map>
@@ -19,3 +22,5 @@
 const char* TRAINING_FILE_NAME = "";
 
 void tmva_train();
+
+#endif

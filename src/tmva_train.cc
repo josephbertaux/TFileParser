@@ -24,8 +24,11 @@ void TMVA_Trainer::MakeTrees()
 
 		if(pos == std::string::npos)
 		{
-			std::cout << "Bad expression, does not contain '='" << std::endl;
-			continue;
+			std::cout << "Bad expression" << std::endl;
+			std::cout << "Expression " << u << " does not contain '='" << std::endl;
+			std::cout << "Aborting" << std::endl;
+
+			return;
 		}
 
 		temp1 = training_expressions[u].substr(0, pos);
@@ -76,7 +79,7 @@ void TMVA_Trainer::MakeTrees()
 		if(!current_file)
 		{
 			std::cout << "Could not open file:" << std::endl;
-			std::cout << file_name << std::endl;
+			std::cout << "\t" << file_name << std::endl;
 			std::cout << "continuing" << std::endl;
 		}
 
@@ -84,11 +87,16 @@ void TMVA_Trainer::MakeTrees()
 		if(!current_tree)
 		{
                         std::cout << "Could not get tree:" << std::endl;
-			std::cout << training_tree_name << std::endl;
+			std::cout << "\t" << training_tree_name << std::endl;
 			std::cout << "From file:" << std::endl;
-                        std::cout << file_name << std::endl;
+                        std::cout << "\t" << file_name << std::endl;
                         std::cout << "continuing" << std::endl;
 		}
+
+		std::cout << std::endl;
+		std::cout << "In file:" << std::endl;
+		std::cout << file_name << std::endl;
+		std::cout << std::endl;
 
 		current_tree->SetBranchStatus("*", 0);
 		for(u = 0; u < training_vals.size(); u++)
@@ -115,6 +123,12 @@ void TMVA_Trainer::MakeTrees()
 		}
 	}
 
+	file_list.close();
+
+
+	//copy-paste but with background tree, or generalize this slightly
+
+
 	for(u = 0; u < training_args.getSize(); u++)
 	{
 		delete &training_args[u];
@@ -127,13 +141,4 @@ void TMVA_Trainer::MakeTrees()
 }
 
 
-
-
-
-
-
-
-
-
-
-
+//...

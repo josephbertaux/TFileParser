@@ -1,12 +1,19 @@
 #include "tmva_train.h"
 
-void tmva_train()
+void TMVA_Trainer::MakeTrees()
 {
-	TMVA::Tools::Instance();
+	if(!signal_tree)
+	{
+		training_branch_values.clear();
 
-	TFile* input = 0x0;
+		signal_tree = new TTree("signal_tree", "signal_tree");
+		for(uint u = 0; u < training_expressions.size(); u++)
+		{
+			training_branch_values.push_back(0.0);
+	
+			signal_tree->Branch(Form("expr%d", u));
+		}
+	}
 
-	input = TFile::Open(TRAINING_FILE_NAME, "r");
-
-	if(!input)return;
+	
 }

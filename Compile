@@ -1,3 +1,0 @@
-#!/bin/bash
-
-g++ -c tmva_train.cc -lRooFitCore -lRooFitMore -lRooFit `root-config --cflags --evelibs`

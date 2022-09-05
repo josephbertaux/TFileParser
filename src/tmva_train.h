@@ -40,6 +40,8 @@ public:
         std::vector<std::string> training_expressions; //A vector containing the expressions, in terms of branchnames, to train on
 
         void MakeTrees();
+
+	void MiscDebug();
 };
 
 #endif

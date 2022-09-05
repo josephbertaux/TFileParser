@@ -4,8 +4,8 @@ void TMVA_Trainer::MakeTrees()
 {
 	uint u;
 
-	RooArgList training_args;
 	std::vector<double> training_vals = {};
+	RooArgList training_args;
 	for(u = 0; u < training_branches.size(); u++)
 	{
 		training_vals.push_back(0.0);
@@ -16,8 +16,8 @@ void TMVA_Trainer::MakeTrees()
 	std::string temp1 = "";
 	std::string temp2 = "";
 
-	RooArgList expression_args;
 	std::vector<double> expression_vals = {};
+	std::vector<RooFormulaVar> expression_args = {};
 	for(u = 0; u < training_expressions.size(); u++)
 	{
 		pos = training_expressions[u].find("=");
@@ -35,7 +35,7 @@ void TMVA_Trainer::MakeTrees()
 		temp2 = training_expressions[u].substr(pos + 1);
 
 		expression_vals.push_back(0.0);
-		expression_args.add(*(new RooFormulaVar(temp1.c_str(), temp2.c_str(), training_args)));
+		expression_args.push_back(RooFormulaVar(temp1.c_str(), temp2.c_str(), training_args));
 	}
 
 
@@ -43,6 +43,7 @@ void TMVA_Trainer::MakeTrees()
 	std::string file_name = "";
 	TFile* current_file = 0x0;
 	TTree* current_tree = 0x0;
+	bool missing_branch_flag = false;
 	Long64_t n;
 
 	if(!signal_tree)
@@ -55,15 +56,21 @@ void TMVA_Trainer::MakeTrees()
 			if(pos == std::string::npos)continue;
 
 			temp1 = training_expressions[u].substr(0, pos);
-			signal_tree->Branch(temp1.c_str()); //probably edit later 
+			signal_tree->Branch(temp1.c_str(), &expression_vals[u]); 
 		}
 		signal_tree->ResetBranchAddresses();
 	}
 
 	for(u = 0; u < expression_vals.size(); u++)
 	{
-		signal_tree->SetBranchStatus(training_expressions[u].c_str(), 1);
-		signal_tree->SetBranchAddress(training_expressions[u].c_str(), &(expression_vals[u]));
+		pos = training_expressions[u].find("=");
+	
+		if(pos == std::string::npos)continue;
+
+		temp1 = training_expressions[u].substr(0, pos);
+
+		signal_tree->SetBranchStatus(temp1.c_str(), 1);
+		signal_tree->SetBranchAddress(temp1.c_str(), &(expression_vals[u]));
 	}
 
 	std::ifstream file_list(signal_list_file_name.c_str(), std::ios_base::in);
@@ -78,32 +85,56 @@ void TMVA_Trainer::MakeTrees()
 		current_file = TFile::Open(file_name.c_str(), "r");
 		if(!current_file)
 		{
+			std::cout << std::endl;
 			std::cout << "Could not open file:" << std::endl;
 			std::cout << "\t" << file_name << std::endl;
 			std::cout << "continuing" << std::endl;
+			std::cout << std::endl;
+
+			continue;
 		}
 
 		current_tree = (TTree*)current_file->Get(training_tree_name.c_str());
 		if(!current_tree)
 		{
+			std::cout << std::endl;
                         std::cout << "Could not get tree:" << std::endl;
 			std::cout << "\t" << training_tree_name << std::endl;
 			std::cout << "From file:" << std::endl;
                         std::cout << "\t" << file_name << std::endl;
                         std::cout << "continuing" << std::endl;
+			std::cout << std::endl;
+
+			continue;
 		}
 
-		std::cout << std::endl;
-		std::cout << "In file:" << std::endl;
-		std::cout << file_name << std::endl;
-		std::cout << std::endl;
-
+		missing_branch_flag = false;
 		current_tree->SetBranchStatus("*", 0);
 		for(u = 0; u < training_vals.size(); u++)
 		{
+			if(!current_tree->GetBranch(training_branches[u].c_str()))
+			{
+				std::cout << std::endl;
+				std::cout << "Could not get branch:" << std::endl;
+				std::cout << "\t" << training_branches[u] << std::endl;
+				std::cout << "From tree:" << std::endl;
+				std::cout << "\t" << training_tree_name << std::endl;
+				std::cout << "In file:" << std::endl;
+				std::cout << "\t" << file_name << std::endl;
+				std::cout << "continuing" << std::endl;
+				std::cout << std::endl;
+
+				missing_branch_flag = true;
+			}
 			current_tree->SetBranchStatus(training_branches[u].c_str(), 1);
 			current_tree->SetBranchAddress(training_branches[u].c_str(), &(training_vals[u]));
 		}
+		if(missing_branch_flag)continue;
+
+		std::cout << std::endl;
+		std::cout << "In file:" << std::endl;
+		std::cout << "\t" << file_name << std::endl;
+		std::cout << std::endl;
 
 		for(n = 0; n < current_tree->GetEntriesFast(); n++)
 		{
@@ -116,7 +147,7 @@ void TMVA_Trainer::MakeTrees()
 
 			for(u = 0; u < expression_args.size(); u++)
 			{
-				expression_vals[u] = ((RooFormulaVar*)&expression_args[u])->getValV();
+				expression_vals[u] = expression_args[u].getValV();
 			}
 
 			signal_tree->Fill();
@@ -125,20 +156,21 @@ void TMVA_Trainer::MakeTrees()
 
 	file_list.close();
 
-
-	//copy-paste but with background tree, or generalize this slightly
-
-
-	for(u = 0; u < training_args.getSize(); u++)
+	for(u = 0; u < training_vals.size(); u++)
 	{
 		delete &training_args[u];
 	}
 
-	for(u = 0; u < expression_args.getSize(); u++)
-	{
-		delete &expression_args[u];
-	}
+
+	//copy-paste but with background tree, or generalize this slightly
+
 }
 
+void TMVA_Trainer :: MiscDebug()
+{
+	if(!signal_tree)return;
+	signal_tree->Print();
+	signal_tree->Scan();
+}
 
 //...

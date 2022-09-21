@@ -5,7 +5,6 @@ void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::s
 {
 	//file_name is the name of the file to write the processed tree to
 	//tree_name is the name of the processed tree
-
 	//file_list_name is the name of the .list file to read in raw, unprocessed files from
 	//training_tree_name is the name of the tree each file in the file list is expected to contain
 
@@ -27,7 +26,7 @@ void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::s
 	std::vector<RooFormulaVar> expression_args = {};
 	for(u = 0; u < training_expressions.size(); u++)
 	{
-		pos = training_expressions[u].find("=");
+		pos = training_expressions[u].find(func_deliminator);
 
 		if(pos == std::string::npos)
 		{
@@ -37,7 +36,7 @@ void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::s
 		else
 		{
 			temp1 = training_expressions[u].substr(0, pos);
-			temp2 = training_expressions[u].substr(pos + 1);
+			temp2 = training_expressions[u].substr(pos + func_deliminator.length());
 		}
 
 		expression_vals.push_back(0.0);
@@ -48,7 +47,7 @@ void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::s
 	TTree* tree = new TTree(tree_name.c_str(), tree_name.c_str());
 	for(u = 0; u < training_expressions.size(); u++)
 	{
-		pos = training_expressions[u].find("=");
+		pos = training_expressions[u].find(func_deliminator);
 
 		if(pos == std::string::npos)
 		{
@@ -183,11 +182,191 @@ void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::s
 //===		public member functions			===//
 void TMVA_Trainer::MakeTrees()
 {
-	//add some guard statements in case members are uninitialized
+	if(signal_file_name == "")
+	{
+		std::cout << "Member 'signal_file_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(signal_file_list_name == "")
+	{
+		std::cout << "Member 'signal_file_list_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(signal_training_tree_name == "")
+	{
+		std::cout << "Member 'signal_training_tree_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+
+	if(background_file_name == "")
+	{
+		std::cout << "Member 'background_file_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(background_file_list_name == "")
+	{
+		std::cout << "Member 'background_file_list_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(background_training_tree_name == "")
+	{
+		std::cout << "Member 'background_training_tree_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+
+	if(training_expressions.size() == 0)
+	{
+		std::cout << "Member 'training_expressions' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(training_branches.size() == 0)
+	{
+		std::cout << "Member 'training_branches' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
 
 	MakeTree(signal_file_name, signal_tree_name, signal_file_list_name, signal_training_tree_name);
 	MakeTree(background_file_name, background_tree_name, background_file_list_name, background_training_tree_name);
 }
+
+void TMVA_Trainer::Train()
+{
+	if(signal_file_name == "")
+	{
+		std::cout << "Member 'signal_file_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(background_file_name == "")
+	{
+		std::cout << "Member 'background_file_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(tmva_output_file_name == "")
+	{
+		std::cout << "Member 'tmva_output_file_name' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+
+	if(training_expressions.size() == 0)
+	{
+		std::cout << "Member 'training_expressions' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+	if(training_branches.size() == 0)
+	{
+		std::cout << "Member 'training_branches' isn't set" << std::endl;
+		std::cout << "Returning" << std::endl;
+
+		return;
+	}
+
+	TFile* signal_file = TFile::Open(signal_file_name.c_str(), "R");
+	if(signal_file == 0x0)
+	{
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << signal_file_name << std::endl;
+		std::cout << "Not found" << std::endl;
+		std::cout << "Try running 'MakeTrees()' first" << std::endl;
+
+		return;
+	}
+	TTree* signal_tree = (TTree*)signal_file->Get(signal_tree_name.c_str());
+	if(signal_tree == 0x0)
+	{
+		std::cout << "Tree:" << std::endl;
+		std::cout << "\t" << signal_tree_name << std::endl;
+		std::cout << "Not found in file:" << std::endl;
+		std::cout << signal_file_name << std::endl;
+		std::cout << "Try running 'MakeTrees()' first" << std::endl;
+
+		return;
+	}
+	
+	TFile* background_file = TFile::Open(background_file_name.c_str(), "R");
+	if(background_file == 0x0)
+	{
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << background_file_name << std::endl;
+		std::cout << "Not found" << std::endl;
+		std::cout << "Try running 'MakeTrees()' first" << std::endl;
+
+		return;
+	}
+	TTree* background_tree = (TTree*)background_file->Get(background_tree_name.c_str());
+	if(background_tree == 0x0)
+	{
+		std::cout << "Tree:" << std::endl;
+		std::cout << "\t" << background_tree_name << std::endl;
+		std::cout << "Not found in file:" << std::endl;
+		std::cout << background_file_name << std::endl;
+		std::cout << "Try running 'MakeTrees()' first" << std::endl;
+
+		return;
+	}
+
+	TFile* tmva_output_file = TFile::Open(tmva_output_file_name.c_str(), "RECREATE");
+	TMVA::Factory* factory = new TMVA::Factory(factory_name.c_str(), tmva_output_file, factory_options.c_str());
+	TMVA::DataLoader* data_loader = new TMVA::DataLoader(data_loader_name.c_str());
+
+	uint u;
+
+	size_t pos = std::string::npos;
+	std::string temp = "";
+
+	data_loader->AddSignalTree(signal_tree, 1.0);
+	data_loader->AddBackgroundTree(background_tree, 1.0);
+	for(u = 0; u < training_expressions.size(); u++)
+	{
+		pos = training_expressions[u].find(func_deliminator);
+
+		if(pos == std::string::npos)
+		{
+			data_loader->AddVariable(training_expressions[u].c_str(), training_expressions[u].c_str(), "", 'F');
+		}
+		else
+		{
+			temp = training_expressions[u].substr(0, pos);
+			data_loader->AddVariable(temp.c_str(), temp.c_str(), "", 'F');
+		}
+	}
+	data_loader->PrepareTrainingAndTestTree("", "", ""); //make third option member string
+
+	factory->BookMethod(data_loader, TMVA::Types::kBDT, "BDT", ""); //make third option member string
+	
+	factory->TrainAllMethods();
+	factory->TestAllMethods();
+	factory->EvaluateAllMethods();
+
+	tmva_output_file->Close();
+
+	delete factory;
+	delete data_loader;
+}
+
 void TMVA_Trainer::MiscDebug()
 {
 	//nothing atm

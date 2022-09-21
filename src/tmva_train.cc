@@ -1,7 +1,14 @@
 #include "tmva_train.h"
 
-void TMVA_Trainer::MakeTrees()
+//===		protected member functions		===//
+void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::string file_list_name, std::string training_tree_name)
 {
+	//file_name is the name of the file to write the processed tree to
+	//tree_name is the name of the processed tree
+
+	//file_list_name is the name of the .list file to read in raw, unprocessed files from
+	//training_tree_name is the name of the tree each file in the file list is expected to contain
+
 	uint u;
 
 	std::vector<double> training_vals = {};
@@ -24,66 +31,60 @@ void TMVA_Trainer::MakeTrees()
 
 		if(pos == std::string::npos)
 		{
-			std::cout << "Bad expression" << std::endl;
-			std::cout << "Expression " << u << " does not contain '='" << std::endl;
-			std::cout << "Aborting" << std::endl;
-
-			return;
+			temp1 = training_expressions[u];
+			temp2 = training_expressions[u];
 		}
-
-		temp1 = training_expressions[u].substr(0, pos);
-		temp2 = training_expressions[u].substr(pos + 1);
+		else
+		{
+			temp1 = training_expressions[u].substr(0, pos);
+			temp2 = training_expressions[u].substr(pos + 1);
+		}
 
 		expression_vals.push_back(0.0);
 		expression_args.push_back(RooFormulaVar(temp1.c_str(), temp2.c_str(), training_args));
 	}
 
-
-
-	std::string file_name = "";
-	TFile* current_file = 0x0;
-	TTree* current_tree = 0x0;
-	bool missing_branch_flag = false;
-	Long64_t n;
-
-	if(!signal_tree)
-	{
-		signal_tree = new TTree("signal_tree", "signal_tree");
-		for(u = 0; u < training_expressions.size(); u++)
-		{
-			pos = training_expressions[u].find("=");
-	
-			if(pos == std::string::npos)continue;
-
-			temp1 = training_expressions[u].substr(0, pos);
-			signal_tree->Branch(temp1.c_str(), &expression_vals[u]); 
-		}
-		signal_tree->ResetBranchAddresses();
-	}
-
-	for(u = 0; u < expression_vals.size(); u++)
+	TFile* file = TFile::Open(file_name.c_str(), "RECREATE");
+	TTree* tree = new TTree(tree_name.c_str(), tree_name.c_str());
+	for(u = 0; u < training_expressions.size(); u++)
 	{
 		pos = training_expressions[u].find("=");
-	
-		if(pos == std::string::npos)continue;
 
-		temp1 = training_expressions[u].substr(0, pos);
+		if(pos == std::string::npos)
+		{
+			temp1 = training_expressions[u];
+		}
+		else
+		{
+			temp1 = training_expressions[u].substr(0, pos);
+		}
 
-		signal_tree->SetBranchStatus(temp1.c_str(), 1);
-		signal_tree->SetBranchAddress(temp1.c_str(), &(expression_vals[u]));
+		tree->Branch(temp1.c_str(), &expression_vals[u]);
+		tree->SetBranchStatus(temp1.c_str(), 1);
+		tree->SetBranchAddress(temp1.c_str(), &(expression_vals[u]));
 	}
+	tree->SetDirectory(file);
 
-	std::ifstream file_list(signal_list_file_name.c_str(), std::ios_base::in);
+	std::string current_file_name = "";
+	TFile* current_file = 0x0;
+	TTree* current_tree = 0x0;
+	Long64_t n;
+
+	int MAX_WARNINGS = 100;
+	int warnings = 0;
+	bool missing_branch_flag = false;
+
+	std::ifstream file_list(file_list_name.c_str(), std::ios_base::in);
 	while(file_list.is_open())
 	{
 		if(file_list.bad())break;
 
-		file_list >> file_name;
+		file_list >> current_file_name;
 
 		if(file_list.eof())break;
 
-		current_file = TFile::Open(file_name.c_str(), "r");
-		if(!current_file)
+		current_file = TFile::Open(current_file_name.c_str(), "R");
+		if(!current_file and warnings < MAX_WARNINGS)
 		{
 			std::cout << std::endl;
 			std::cout << "Could not open file:" << std::endl;
@@ -91,11 +92,13 @@ void TMVA_Trainer::MakeTrees()
 			std::cout << "continuing" << std::endl;
 			std::cout << std::endl;
 
+			warnings++;
+
 			continue;
 		}
 
 		current_tree = (TTree*)current_file->Get(training_tree_name.c_str());
-		if(!current_tree)
+		if(!current_tree and warnings < MAX_WARNINGS)
 		{
 			std::cout << std::endl;
                         std::cout << "Could not get tree:" << std::endl;
@@ -104,6 +107,8 @@ void TMVA_Trainer::MakeTrees()
                         std::cout << "\t" << file_name << std::endl;
                         std::cout << "continuing" << std::endl;
 			std::cout << std::endl;
+
+			warnings++;
 
 			continue;
 		}
@@ -115,26 +120,35 @@ void TMVA_Trainer::MakeTrees()
 			if(!current_tree->GetBranch(training_branches[u].c_str()))
 			{
 				std::cout << std::endl;
-				std::cout << "Could not get branch:" << std::endl;
+				std::cout << "\tCould not get branch:" << std::endl;
 				std::cout << "\t" << training_branches[u] << std::endl;
-				std::cout << "From tree:" << std::endl;
-				std::cout << "\t" << training_tree_name << std::endl;
-				std::cout << "In file:" << std::endl;
-				std::cout << "\t" << file_name << std::endl;
-				std::cout << "continuing" << std::endl;
-				std::cout << std::endl;
 
 				missing_branch_flag = true;
 			}
 			current_tree->SetBranchStatus(training_branches[u].c_str(), 1);
 			current_tree->SetBranchAddress(training_branches[u].c_str(), &(training_vals[u]));
 		}
-		if(missing_branch_flag)continue;
+		if(missing_branch_flag and warnings < MAX_WARNINGS)
+		{
+			std::cout << "Tree:" << std::endl;
+			std::cout << "\t" << training_tree_name << std::endl;
+			std::cout << "In file:" << std::endl;
+			std::cout << "\t" << file_name << std::endl;
+			std::cout << "Is missing training branches" << std::endl;
+			std::cout << "Continuing..." << std::endl;
+			std::cout << std::endl;
 
-		std::cout << std::endl;
-		std::cout << "In file:" << std::endl;
-		std::cout << "\t" << file_name << std::endl;
-		std::cout << std::endl;
+			warnings++;
+
+			continue;
+		}
+
+		if(!(warnings < MAX_WARNINGS))
+		{
+			std::cout << std::endl;
+			std::cout << "Maximum number of warnings (" << MAX_WARNINGS << ") printed" << std::endl;
+			std::cout << "Suppressing further warnings" << std::endl;
+		}
 
 		for(n = 0; n < current_tree->GetEntriesFast(); n++)
 		{
@@ -150,27 +164,34 @@ void TMVA_Trainer::MakeTrees()
 				expression_vals[u] = expression_args[u].getValV();
 			}
 
-			signal_tree->Fill();
+			tree->Fill();
 		}
 	}
 
 	file_list.close();
 
+	file->Write();
+	file->Close();
+
 	for(u = 0; u < training_vals.size(); u++)
 	{
 		delete &training_args[u];
 	}
-
-
-	//copy-paste but with background tree, or generalize this slightly
-
 }
+//===		~protected member functions		===//
 
-void TMVA_Trainer :: MiscDebug()
+//===		public member functions			===//
+void TMVA_Trainer::MakeTrees()
 {
-	if(!signal_tree)return;
-	signal_tree->Print();
-	signal_tree->Scan();
+	//add some guard statements in case members are uninitialized
+
+	MakeTree(signal_file_name, signal_tree_name, signal_file_list_name, signal_training_tree_name);
+	MakeTree(background_file_name, background_tree_name, background_file_list_name, background_training_tree_name);
+}
+void TMVA_Trainer::MiscDebug()
+{
+	//nothing atm
 }
 
 //...
+//===		~public member functions		===//

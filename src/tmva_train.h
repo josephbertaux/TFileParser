@@ -28,19 +28,29 @@
 class TMVA_Trainer
 {
 protected:
-        TTree* signal_tree = 0x0;
-        TTree* background_tree = 0x0;
+	std::string signal_tree_name = "signal_tree";
+	std::string background_tree_name = "background_tree";
 
+        void MakeTree(std::string, std::string, std::string, std::string);
 public:
-        std::string signal_list_file_name = ""; //The fullpath name of the .list file, listing files containing raw data for signal
-        std::string background_list_file_name = ""; //The fullpath name of the .list file, listing files containing raw data for background
-        std::string training_tree_name = ""; //The fullpath name of the TTree in each file of the filelist
+	//The names of the signal and background files the trees will be stored in
+	std::string signal_file_name = "";
+	std::string background_file_name = "";
 
-        std::vector<std::string> training_branches; //A vector containing the names of branches needed from the raw data
-        std::vector<std::string> training_expressions; //A vector containing the expressions, in terms of branchnames, to train on
+	//The fullpath name of the .list file, listing files containing raw, unprocessed TTrees for signal/background
+        std::string signal_file_list_name = "";
+        std::string background_file_list_name = "";
 
-        void MakeTrees();
+	//The name of the TTree in each file of the signal filelist or background filelist to be retrieved
+        std::string signal_training_tree_name = "";
+        std::string background_training_tree_name = "";
 
+	//A vector containing the expressions, in terms of branchnames, to train on
+        std::vector<std::string> training_expressions;
+	//A vector containing the names of branches needed from the raw data
+        std::vector<std::string> training_branches;
+
+	void MakeTrees();
 	void MiscDebug();
 };
 

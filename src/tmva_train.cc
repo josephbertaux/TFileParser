@@ -1,250 +1,477 @@
 #include "tmva_train.h"
 
-//===		protected member functions		===//
-void TMVA_Trainer::MakeTree(std::string file_name, std::string tree_name, std::string file_list_name, std::string training_tree_name)
+void TMVA_Trainer::InitArgs()
 {
-	//file_name is the name of the file to write the processed tree to
-	//tree_name is the name of the processed tree
-	//file_list_name is the name of the .list file to read in raw, unprocessed files from
-	//training_tree_name is the name of the tree each file in the file list is expected to contain
+	//=== raw expressions ===//
+	if(raw_prompt_vars.size() == 0)
+	{
+		std::cout << "Member 'raw_prompt_vars' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(raw_nonprompt_vars.size() == 0)
+	{
+		std::cout << "Member 'raw_nonprompt_vars' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(raw_data_vars.size() == 0)
+	{
+		std::cout << "Member 'raw_data_vars' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
 
 	uint u;
-
-	std::vector<double> training_vals = {};
-	RooArgList training_args;
-	for(u = 0; u < training_branches.size(); u++)
+	raw_prompt_args.clear();
+	for(u = 0; u < raw_prompt_vars.size(); u++)
 	{
-		training_vals.push_back(0.0);
-		training_args.add(*(new RooRealVar(training_branches[u].c_str(), training_branches[u].c_str(), 0.0, -DBL_MAX, DBL_MAX)));
+		if(raw_prompt_vars[u] == "")continue;
+		raw_prompt_args.addOwned(*(new RooRealVar(raw_prompt_vars[u].c_str(), raw_prompt_vars[u].c_str(), 0.0, -DBL_MAX, DBL_MAX)));
+	}
+	raw_nonprompt_args.clear();
+	for(u = 0; u < raw_nonprompt_vars.size(); u++)
+	{
+		if(raw_nonprompt_vars[u] == "")continue;
+		raw_nonprompt_args.addOwned(*(new RooRealVar(raw_nonprompt_vars[u].c_str(), raw_nonprompt_vars[u].c_str(), 0.0, -DBL_MAX, DBL_MAX)));
+	}
+	raw_data_args.clear();
+	for(u = 0; u < raw_data_vars.size(); u++)
+	{
+		if(raw_data_vars[u] == "")continue;
+		raw_data_args.addOwned(*(new RooRealVar(raw_data_vars[u].c_str(), raw_data_vars[u].c_str(), 0.0, -DBL_MAX, DBL_MAX)));
+	}
+	//=== raw expressions ===//
+
+	//=== Training Expressions and Mass	===//
+	if(mass_name == "")
+	{
+		std::cout << "Member 'mass_name' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(prompt_mass_formula == "")
+	{
+		std::cout << "Member 'prompt_mass_formula' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(nonprompt_mass_formula == "")
+	{
+		std::cout << "Member 'nonprompt_mass_formula' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(data_mass_formula == "")
+	{
+		std::cout << "Member 'data_mass_formula' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
 	}
 
-	size_t pos = std::string::npos;
-	std::string temp1 = "";
-	std::string temp2 = "";
-
-	std::vector<double> expression_vals = {};
-	std::vector<RooFormulaVar> expression_args = {};
-	for(u = 0; u < training_expressions.size(); u++)
+	training_prompt_args.clear();
+	training_prompt_args.addOwned(*(new RooFormulaVar(mass_name.c_str(), prompt_mass_formula.c_str(), raw_prompt_args)));
+	for(u = 0; u < training_prompt_formulas.size(); u++)
 	{
-		pos = training_expressions[u].find(func_deliminator);
+		if(training_vars[u] == "")continue;
+		if(training_prompt_formulas[u] == "")continue;
+		training_prompt_args.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_prompt_formulas[u].c_str(), raw_prompt_args)));
+	}
+	training_nonprompt_args.clear();
+	training_nonprompt_args.addOwned(*(new RooFormulaVar(mass_name.c_str(), nonprompt_mass_formula.c_str(), raw_nonprompt_args)));
+	for(u = 0; u < training_nonprompt_formulas.size(); u++)
+	{
+		if(training_vars[u] == "")continue;
+		if(training_nonprompt_formulas[u] == "")continue;
+		training_nonprompt_args.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_nonprompt_formulas[u].c_str(), raw_nonprompt_args)));
+	}
+	training_data_args.clear();
+	training_data_args.addOwned(*(new RooFormulaVar(mass_name.c_str(), data_mass_formula.c_str(), raw_data_args)));
+	for(u = 0; u < training_data_formulas.size(); u++)
+	{
+		if(training_vars[u] == "")continue;
+		if(training_data_formulas[u] == "")continue;
+		training_data_args.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_data_formulas[u].c_str(), raw_data_args)));
+	}
+	//=== Training Expressions and Mass	===//
 
-		if(pos == std::string::npos)
-		{
-			temp1 = training_expressions[u];
-			temp2 = training_expressions[u];
-		}
-		else
-		{
-			temp1 = training_expressions[u].substr(0, pos);
-			temp2 = training_expressions[u].substr(pos + func_deliminator.length());
-		}
+	//===	Cuts	===//
+	prompt_cuts.clear();
+	for(u = 0; u < prompt_cut_formulas.size(); u++)
+	{
+		if(prompt_cut_formulas[u] == "")continue;
+		prompt_cuts.addOwned(*(new RooFormulaVar(Form("Prompt_Cut_%d", u), prompt_cut_formulas[u].c_str(), raw_prompt_args)));
+	} 
+	nonprompt_cuts.clear();
+	for(u = 0; u < nonprompt_cut_formulas.size(); u++)
+	{
+		if(nonprompt_cut_formulas[u] == "")continue;
+		nonprompt_cuts.addOwned(*(new RooFormulaVar(Form("NonPrompt_Cut_%d", u), nonprompt_cut_formulas[u].c_str(), raw_nonprompt_args)));
+	}
+	//=== Cuts	===//
+}
 
-		expression_vals.push_back(0.0);
-		expression_args.push_back(RooFormulaVar(temp1.c_str(), temp2.c_str(), training_args));
+void TMVA_Trainer::InitFiles()
+{
+	if(training_file_name == "")
+	{
+		std::cout << "Member 'training_file_name' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
 	}
 
-	TFile* file = TFile::Open(file_name.c_str(), "RECREATE");
-	TTree* tree = new TTree(tree_name.c_str(), tree_name.c_str());
-	for(u = 0; u < training_expressions.size(); u++)
+	TFile* training_file = TFile::Open(training_file_name.c_str(), "RECREATE");
+
+	TTree* prompt_tree = new TTree(prompt_tree_name.c_str(), prompt_tree_name.c_str());
+	TTree* nonprompt_tree = new TTree(nonprompt_tree_name.c_str(), nonprompt_tree_name.c_str());
+	TTree* background_tree = new TTree(background_tree_name.c_str(), background_tree_name.c_str());
+
+	prompt_tree->SetDirectory(training_file);
+	nonprompt_tree->SetDirectory(training_file);
+	background_tree->SetDirectory(training_file);
+
+	uint u;
+	double d;
+	prompt_tree->Branch(mass_name.c_str(), &d);
+	nonprompt_tree->Branch(mass_name.c_str(), &d);
+	background_tree->Branch(mass_name.c_str(), &d);
+	for(u = 0; u < training_vars.size(); u++)
 	{
-		pos = training_expressions[u].find(func_deliminator);
-
-		if(pos == std::string::npos)
-		{
-			temp1 = training_expressions[u];
-		}
-		else
-		{
-			temp1 = training_expressions[u].substr(0, pos);
-		}
-
-		tree->Branch(temp1.c_str(), &expression_vals[u]);
-		tree->SetBranchStatus(temp1.c_str(), 1);
-		tree->SetBranchAddress(temp1.c_str(), &(expression_vals[u]));
+		prompt_tree->Branch(training_vars[u].c_str(), &d);
+		nonprompt_tree->Branch(training_vars[u].c_str(), &d);
+		background_tree->Branch(training_vars[u].c_str(), &d);
 	}
-	tree->SetDirectory(file);
 
-	std::string current_file_name = "";
-	TFile* current_file = 0x0;
-	TTree* current_tree = 0x0;
-	Long64_t n;
+	prompt_tree->ResetBranchAddresses();
+	nonprompt_tree->ResetBranchAddresses();
+	background_tree->ResetBranchAddresses();
 
-	int MAX_WARNINGS = 100;
-	int warnings = 0;
-	bool missing_branch_flag = false;
+	training_file->Write();
+	training_file->Close();
+}
 
-	std::ifstream file_list(file_list_name.c_str(), std::ios_base::in);
-	while(file_list.is_open())
+void TMVA_Trainer::ReadPrompt()
+{
+	if(training_file_name == "")
 	{
-		if(file_list.bad())break;
+		std::cout << "Member 'training_file_name' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
 
-		file_list >> current_file_name;
+		return;
+	}
+	TFile* training_file = TFile::Open(training_file_name.c_str(), "UPDATE");
+	if(!training_file)
+	{
+		std::cout << "Could not get file:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Exiting" << std::endl;
 
-		if(file_list.eof())break;
+		return;
+	}
+	if(training_file.IsZombie())
+	{
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Is zombie" << std::endl;
+		std::cout << "Exiting" << std::endl;
 
-		current_file = TFile::Open(current_file_name.c_str(), "R");
-		if(!current_file and warnings < MAX_WARNINGS)
+		return;
+	}
+	TTree* prompt_tree = (TTree*)training_file->Get(prompt_tree_name.c_str());
+	if(!prompt_tree)
+	{
+		std::cout << "Could not get tree:" << std::endl;
+		std::cout << "\t" << prompt_tree_name << std::endl;
+		std::cout << "From file:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(prompt_file_name != "")
+	{
+		ProcessRawFile(prompt_file_name, prompt_tree_names, prompt_tree, raw_prompt_args, training_prompt_args, prompt_cuts, true);
+	}
+
+	if(prompt_file_name == "" and prompt_file_list_name != "")
+	{
+		std::string current_file_name = "";
+
+		int MAX_WARNINGS = 30;
+		int warnings = 0;
+	
+		std::ifstream file_list(prompt_file_list_name.c_str(), std::ios_base::in);
+		while(file_list.is_open())
 		{
-			std::cout << std::endl;
-			std::cout << "Could not open file:" << std::endl;
-			std::cout << "\t" << file_name << std::endl;
-			std::cout << "continuing" << std::endl;
-			std::cout << std::endl;
-
-			warnings++;
-
-			continue;
+			if(file_list.bad())break;
+	
+			file_list >> current_file_name;
+	
+			if(file_list.eof())break;
+	
+			warnings += ProcessRawFile(prompt_file_name, prompt_tree_names, prompt_tree, raw_prompt_args, training_prompt_args, prompt_cuts, (warnings < MAX_WARNINGS));
 		}
 
-		current_tree = (TTree*)current_file->Get(training_tree_name.c_str());
-		if(!current_tree and warnings < MAX_WARNINGS)
+		file_list.close();
+	}
+
+	training_file->Write();
+	training_file->Close();
+}
+
+void TMVA_Trainer::ReadNonprompt()
+{
+	if(training_file_name == "")
+	{
+		std::cout << "Member 'training_file_name' not set" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	TFile* training_file = TFile::Open(training_file_name.c_str(), "UPDATE");
+	if(!training_file)
+	{
+		std::cout << "Could not get file:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(training_file.IsZombie())
+	{
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Is zombie" << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	TTree* nonprompt_tree = (TTree*)training_file->Get(nonprompt_tree_name.c_str());
+	if(!nonprompt_tree)
+	{
+		std::cout << "Could not get tree:" << std::endl;
+		std::cout << "\t" << nonprompt_tree_name << std::endl;
+		std::cout << "From file:" << std::endl;
+		std::cout << "\t" << training_file_name << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return;
+	}
+	if(nonprompt_file_name != "")
+	{
+		ProcessRawFile(nonprompt_file_name, nonprompt_tree_names, nonprompt_tree, raw_nonprompt_args, training_nonprompt_args, nonprompt_cuts, true);
+	}
+
+	if(nonprompt_file_name == "" and nonprompt_file_list_name != "")
+	{
+		std::string current_file_name = "";
+
+		int MAX_WARNINGS = 30;
+		int warnings = 0;
+	
+		std::ifstream file_list(nonprompt_file_list_name.c_str(), std::ios_base::in);
+		while(file_list.is_open())
+		{
+			if(file_list.bad())break;
+	
+			file_list >> current_file_name;
+	
+			if(file_list.eof())break;
+	
+			warnings += ProcessRawFile(nonprompt_file_name, nonprompt_tree_names, nonprompt_tree, raw_nonprompt_args, training_nonprompt_args, nonprompt_cuts, (warnings < MAX_WARNINGS));
+		}
+
+		file_list.close();
+	}
+
+	training_file->Write();
+	training_file->Close();
+}
+
+void TMVA_Trainer::ReadMC()
+{
+	ReadPrompt();
+	ReadNonprompt();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int TMVA_Trainer::ProcessRawFile(std::string raw_file_name, std::vector<std::string> raw_tree_names, TTree* tree, RooArgList& raw_args, RooArgList& args, RooArgList& cuts, bool v)
+{
+	TFile* raw_file = TFile::Open(raw_file_name.c_str(), "READ");
+	if(!raw_file)
+	{
+		if(v)
 		{
 			std::cout << std::endl;
-                        std::cout << "Could not get tree:" << std::endl;
-			std::cout << "\t" << training_tree_name << std::endl;
+			std::cout << "Could not get file:" << std::endl;
+			std::cout << "\t" << raw_file_name << std::endl;
+			std::cout << "Exiting" << std::endl;
+		}
+
+		return 1;
+	}
+
+	if(raw_file.IsZombie())
+	{
+		std::cout << std::endl;
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << raw_file_name << std::endl;
+		std::cout << "Is zombie" << std::cout << std::endl;
+		std::cout << "Exiting" << std::endl;
+
+		return 1;
+	}
+
+	uint u;
+	TTree* raw_tree = (TTree*)raw_file->Get(raw_tree_names[0].c_str());
+	if(!raw_tree)
+	{
+		if(v)
+		{
+			std::cout << std::endl;
+        	        std::cout << "Could not get tree:" << std::endl;
+			std::cout << "\t" << raw_tree_names[0] << std::endl;
 			std::cout << "From file:" << std::endl;
-                        std::cout << "\t" << file_name << std::endl;
-                        std::cout << "continuing" << std::endl;
+        	        std::cout << "\t" << raw_file_name << std::endl;
+        	        std::cout << "Exiting" << std::endl;
 			std::cout << std::endl;
-
-			warnings++;
-
-			continue;
 		}
 
-		missing_branch_flag = false;
-		current_tree->SetBranchStatus("*", 0);
-		for(u = 0; u < training_vals.size(); u++)
+		return 1;
+	}
+	TTree* frnd = 0x0;
+	for(u = 1; u < raw_tree_names.size(); u++)
+	{
+		frnd = (TTree*)raw_file->Get(raw_tree_names[u].c_str());
+		if(!frnd)
 		{
-			if(!current_tree->GetBranch(training_branches[u].c_str()))
+			if(v)
 			{
 				std::cout << std::endl;
-				std::cout << "\tCould not get branch:" << std::endl;
-				std::cout << "\t" << training_branches[u] << std::endl;
-
-				missing_branch_flag = true;
+	        	        std::cout << "Could not get tree:" << std::endl;
+				std::cout << "\t" << raw_tree_names[u] << std::endl;
+				std::cout << "From file:" << std::endl;
+	        	        std::cout << "\t" << raw_file_name << std::endl;
+	        	        std::cout << "Exiting" << std::endl;
+				std::cout << std::endl;
 			}
-			current_tree->SetBranchStatus(training_branches[u].c_str(), 1);
-			current_tree->SetBranchAddress(training_branches[u].c_str(), &(training_vals[u]));
-		}
-		if(missing_branch_flag and warnings < MAX_WARNINGS)
-		{
-			std::cout << "Tree:" << std::endl;
-			std::cout << "\t" << training_tree_name << std::endl;
-			std::cout << "In file:" << std::endl;
-			std::cout << "\t" << file_name << std::endl;
-			std::cout << "Is missing training branches" << std::endl;
-			std::cout << "Continuing..." << std::endl;
-			std::cout << std::endl;
-
-			warnings++;
-
-			continue;
+	
+			return 1;
 		}
 
-		if(!(warnings < MAX_WARNINGS))
-		{
-			std::cout << std::endl;
-			std::cout << "Maximum number of warnings (" << MAX_WARNINGS << ") printed" << std::endl;
-			std::cout << "Suppressing further warnings" << std::endl;
-		}
-
-		for(n = 0; n < current_tree->GetEntriesFast(); n++)
-		{
-			current_tree->GetEntry(n);
-
-			for(u = 0; u < training_vals.size(); u++)
-			{
-				((RooRealVar*)&training_args[u])->setVal(training_vals[u]);
-			}
-
-			for(u = 0; u < expression_args.size(); u++)
-			{
-				expression_vals[u] = expression_args[u].getValV();
-			}
-
-			tree->Fill();
-		}
+		raw_tree->AddFriend(frnd);
 	}
 
-	file_list.close();
-
-	file->Write();
-	file->Close();
-
-	for(u = 0; u < training_vals.size(); u++)
+	double raw_vals[raw_args.getSize()];
+	for(u = 0; u < raw_args.getSize(); u++)
 	{
-		delete &training_args[u];
-	}
-}
-//===		~protected member functions		===//
+		if(!raw_tree->GetBranch(raw_args[u].GetName()))
+		{
+			if(v)
+			{
+				std::cout << std::endl;
+	        	        std::cout << "Could not get branch:" << std::endl;
+				std::cout << "\t" << raw_args[u].GetName() << std::endl;
+	        	        std::cout << "From trees in file:" << std::endl;
+	        	        std::cout << "\t" << raw_file_name << std::endl;
+	        	        std::cout << "Exiting" << std::endl;
+				std::cout << std::endl;
+			}
 
-//===		public member functions			===//
-void TMVA_Trainer::MakeTrees()
+			return 1;
+		}
+
+		raw_tree->SetBranchStatus(raw_args[u].GetName(), 1);
+		raw_tree->SetBranchAddress(raw_args[u].GetName(), &(raw_vals[u]));
+	}
+
+	double vals[args.getSize()];
+	for(u = 0; u < raw_args.getSize(); u++)
+	{
+		if(!tree->GetBranch(args[u].GetName()))
+		{
+			if(v)
+			{
+				std::cout << std::endl;
+	        	        std::cout << "Could not get branch:" << std::endl;
+				std::cout << "\t" << args[u].GetName() << std::endl;
+	        	        std::cout << "In passed TTree" << std::endl;
+	        	        std::cout << "Exiting" << std::endl;
+				std::cout << std::endl;
+			}
+
+			return 1;
+		}
+
+		tree->SetBranchStatus(args[u].GetName(), 1);
+		tree->SetBranchAddress(args[u].GetName(), &(vals[u]));
+	}
+
+	Long64_t n;
+	bool b;
+
+	for(n = 0; n < raw_tree->GetEntriesFast(); n++)
+	{
+		raw_tree->GetEntry(n);
+
+		for(u = 0; u < raw_args.getSize(); u++)
+		{
+			((RooRealVar*)&(raw_args[u]))->setVal(raw_vals[u]);
+		}
+
+		for(u = 0; u < args.getSize(); u++)
+		{
+			vals[u] = ((RooFormulaVar*)&(args[u]))->getValV();
+		}
+
+		b = true;
+		for(u = 0; u < cuts.getSize(); u++)
+		{
+			if(((RooFormulaVar*)&(cuts[u]))->getValV() == 0.0)b = false;
+		}
+
+		if(b)tree->Fill();
+	}
+
+	return 0;
+}
+
+void TMVA_Trainer::AddTrainingVar(std::string var, std::string prompt_formula, std::string nonprompt_formula, std::string data_formula)
 {
-	if(signal_file_name == "")
-	{
-		std::cout << "Member 'signal_file_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
+	training_vars.push_back(var);
 
-		return;
-	}
-	if(signal_file_list_name == "")
-	{
-		std::cout << "Member 'signal_file_list_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-	if(signal_training_tree_name == "")
-	{
-		std::cout << "Member 'signal_training_tree_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-
-	if(background_file_name == "")
-	{
-		std::cout << "Member 'background_file_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-	if(background_file_list_name == "")
-	{
-		std::cout << "Member 'background_file_list_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-	if(background_training_tree_name == "")
-	{
-		std::cout << "Member 'background_training_tree_name' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-
-	if(training_expressions.size() == 0)
-	{
-		std::cout << "Member 'training_expressions' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-	if(training_branches.size() == 0)
-	{
-		std::cout << "Member 'training_branches' isn't set" << std::endl;
-		std::cout << "Returning" << std::endl;
-
-		return;
-	}
-
-	MakeTree(signal_file_name, signal_tree_name, signal_file_list_name, signal_training_tree_name);
-	MakeTree(background_file_name, background_tree_name, background_file_list_name, background_training_tree_name);
+	training_prompt_formulas.push_back(prompt_formula);
+	training_nonprompt_formulas.push_back(nonprompt_formula);
+	training_data_formulas.push_back(data_formula);
 }
 
+
+
+/*
 void TMVA_Trainer::Train()
 {
 	if(signal_file_name == "")
@@ -371,6 +598,6 @@ void TMVA_Trainer::MiscDebug()
 {
 	//nothing atm
 }
-
+*/
 //...
 //===		~public member functions		===//

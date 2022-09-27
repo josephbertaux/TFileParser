@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -28,70 +29,92 @@ class TMVA_Trainer
 {
 protected:
 	//The names of the TTrees in the processed files
-	std::string prompt_tree_name = "prompt_tree";
-	std::string nonprompt_tree_name = "nonprompt_tree";
-	std::string background_tree_name = "background_tree";
+	std::string tree_name_prompt = "prompt_tree";
+	std::string tree_name_nonprompt = "nonprompt_tree";
+	std::string tree_name_background = "background_tree";
 
 	std::string factory_name = "factory";
 	std::string data_loader_name = "data_loader";
 
-	//RooArgLists that go with the raw_..._vars initialized in Init();
-	RooArgList raw_prompt_args;
-	RooArgList raw_nonprompt_args;
-	RooArgList raw_data_args;
+	int MAX_WARNINGS = 30;
 
-	//The name of the mass branch to be used in the processed files
+	//RooArgLists that go with the corresponding raw_..._vars public member vectors
+	//There will be a RooRealVar for each element of the raw_..._vars vectors
+	RooArgList raw_args_prompt;
+	RooArgList raw_args_nonprompt;
+	RooArgList raw_args_data;
+
+	//RooArgLists that go with the corresponding raw_..._cuts public member vectors
+	//There will be a RooFormulaVar for each element of the raw_..._cut_formulas vectors
+	RooArgList raw_cuts_prompt;
+	RooArgList raw_cuts_nonprompt;
+	RooArgList raw_cuts_data;
+
+	//The name of the mass branch to be used in the processed trees
 	std::string mass_name = "mass";
 
-	//commensurate vectors that show what the names of the training vars should be and the formulas in the data files
-	//mc_formulas are expressed in terms of mc_vars
-	//data_formulas are expressed in terms of data_vars
+	std::shared_ptr<RooFormulaVar> mass_prompt;
+	std::shared_ptr<RooFormulaVar> mass_nonprompt;
+	std::shared_ptr<RooFormulaVar> mass_data;
+
+	//Members to create branches in the processed trees used directly for training
+	//Formulas are in terms of the corresponding raw_..._vars members
 	std::vector<std::string> training_vars = {};
 
-	std::vector<std::string> training_prompt_formulas = {};
-	std::vector<std::string> training_nonprompt_formulas = {};
-	std::vector<std::string> training_data_formulas = {};
+	std::vector<std::string> training_var_formulas_prompt = {};
+	std::vector<std::string> training_var_formulas_nonprompt = {};
+	std::vector<std::string> training_var_formulas_data = {};
 
-	RooArgList training_prompt_args;
-	RooArgList training_nonprompt_args;
-	RooArgList training_data_args;
+	RooArgList training_args_prompt;
+	RooArgList training_args_nonprompt;
+	RooArgList training_args_data;
 
-	//RooArgLists that go with the cuts
-	RooArgList prompt_cuts;
-	RooArgList nonprompt_cuts;
+	//Members to create branches in the processed trees used only for applying cuts when training
+	//Formulas are in terms of the corresponding raw_..._vars members
+	//should be have no elements also in training_vars
+	std::vector<std::string> training_cut_vars = {};
+
+	std::vector<std::string> training_cut_var_formulas_prompt = {};
+	std::vector<std::string> training_cut_var_formulas_nonprompt = {};
+	std::vector<std::string> training_cut_var_formulas_data = {};
+
+	RooArgList training_cut_args_prompt;
+	RooArgList training_cut_args_nonprompt;
+	RooArgList training_cut_args_data;
 
 public:
 	//The names of the prompt, nonprompt, and background files the trees will be stored in
-	std::string training_file_name = "";
+	std::string file_name_training = "";
 
 	//The fullpath name of raw files used to read in data
 	//Or, the fullpath name of the .list file if the raw file names are unspecified
-	std::string prompt_file_name = "";
-	std::string nonprompt_file_name = "";
-	std::string data_file_name = "";
+	std::string file_name_prompt = "";
+	std::string file_name_nonprompt = "";
+	std::string file_name_data = "";
 
-	std::string prompt_file_list_name = "";
-	std::string nonprompt_file_list_name = "";
-	std::string data_file_list_name = "";
+	std::string file_list_name_prompt = "";
+	std::string file_list_name_nonprompt = "";
+	std::string file_list_name_data = "";
 
 	//The names of the TTrees in each file of the raw data files to be retrieved
-        std::vector<std::string> prompt_tree_names = {};
-        std::vector<std::string> nonprompt_tree_names = {};
-        std::vector<std::string> data_tree_names = {};
+        std::vector<std::string> tree_names_prompt = {};
+        std::vector<std::string> tree_names_nonprompt = {};
+        std::vector<std::string> tree_names_data = {};
 
-	//The branch names needed from these TTrees to construct the mass, training, and cut RooFormulaVars
-	std::vector<std::string> raw_prompt_vars = {};
-	std::vector<std::string> raw_nonprompt_vars = {};
-	std::vector<std::string> raw_data_vars = {};
+	//The branch names needed from these TTrees to construct the mass, training vars, and training cuts
+	std::vector<std::string> raw_vars_prompt = {};
+	std::vector<std::string> raw_vars_nonprompt = {};
+	std::vector<std::string> raw_vars_data = {};
+
+	//cut expressions on raw data in terms of the elements of the corresponding raw_..._vars vectors
+	std::vector<std::string> raw_cut_formulas_prompt = {};
+	std::vector<std::string> raw_cut_formulas_nonprompt = {};
+	std::vector<std::string> raw_cut_formulas_data = {};
 
 	//Mass expressions
-	std::string prompt_mass_formula = "";
-	std::string nonprompt_mass_formula = "";
-	std::string data_mass_formula = "";
-
-	//Cut expressions
-	std::vector<std::string> prompt_cut_formulas = {};
-	std::vector<std::string> nonprompt_cut_formulas = {};
+	std::string mass_formula_prompt = "";
+	std::string mass_formula_nonprompt = "";
+	std::string mass_formula_data = "";
 
 	//Training options
 	std::string factory_options = "!V:!Silent:Color:DrawProgressBar:AnalysisType=Classification";
@@ -100,6 +123,9 @@ public:
 	void AddTrainingVar(std::string s, std::string t, std::string u){AddTrainingVar(s, t, t, u);}
 	void AddTrainingVar(std::string s, std::string t){AddTrainingVar(s, t, t, t);}
 
+	void AddTrainingCutVar(std::string, std::string, std::string, std::string);
+	void AddTrainingCutVar(std::string s, std::string t, std::string u){AddTrainingCutVar(s, t, t, u);}
+	void AddTrainingCutVar(std::string s, std::string t){AddTrainingCutVar(s, t, t, t);}
 
 	void InitFiles();
 	void InitArgs();
@@ -108,7 +134,13 @@ public:
 	void ReadNonprompt();
 	void ReadMC();
 
-	int ProcessRawFile(std::string, std::vector<std::string>, TTree*, RooArgList&, RooArgList&, RooArgList&, bool);
+	int ProcessRawFile
+	(
+		std::string, std::vector<std::string>, TTree*,
+		RooArgList&, RooArgList&,
+		std::shared_ptr<RooFormulaVar>&, RooArgList&, RooArgList&,
+		bool
+	);
 };
 
 #endif

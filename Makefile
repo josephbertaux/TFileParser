@@ -16,7 +16,7 @@ LIBS = `root-config --evelibs` -lTMVA -lTMVAGui -lRooFitCore -lRooFitMore -lRooF
 tmva : $(OBJS)
 	$(CC) $(FLAGS) $(INCS) -o tmva $(OBJS) $(LIBS)
 
-$(OBJ_DIR)/tmva_main.o : $(SRC_DIR)/tmva_main.h
+$(OBJ_DIR)/tmva_main.o :
 	$(CC) $(FLAGS) $(INCS) -c $(SRC_DIR)/tmva_main.cc $(LIBS)
 	mv tmva_main.o $(OBJ_DIR)/tmva_main.o
 

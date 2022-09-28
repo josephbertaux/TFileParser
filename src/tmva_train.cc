@@ -132,21 +132,21 @@ void TMVA_Trainer::InitArgs()
 	{
 		if(training_cut_vars[u] == "")continue;
 		if(training_cut_var_formulas_prompt[u] == "")continue;
-		training_cut_args_prompt.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_cut_var_formulas_prompt[u].c_str(), raw_args_prompt)));
+		training_cut_args_prompt.addOwned(*(new RooFormulaVar(training_cut_vars[u].c_str(), training_cut_var_formulas_prompt[u].c_str(), raw_args_prompt)));
 	}
 	training_cut_args_nonprompt.clear();
 	for(u = 0; u < training_cut_var_formulas_nonprompt.size(); u++)
 	{
 		if(training_vars[u] == "")continue;
 		if(training_cut_var_formulas_nonprompt[u] == "")continue;
-		training_cut_args_nonprompt.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_cut_var_formulas_nonprompt[u].c_str(), raw_args_nonprompt)));
+		training_cut_args_nonprompt.addOwned(*(new RooFormulaVar(training_cut_vars[u].c_str(), training_cut_var_formulas_nonprompt[u].c_str(), raw_args_nonprompt)));
 	}
 	training_args_data.clear();
 	for(u = 0; u < training_cut_var_formulas_data.size(); u++)
 	{
 		if(training_vars[u] == "")continue;
 		if(training_cut_var_formulas_data[u] == "")continue;
-		training_cut_args_data.addOwned(*(new RooFormulaVar(training_vars[u].c_str(), training_cut_var_formulas_data[u].c_str(), raw_args_data)));
+		training_cut_args_data.addOwned(*(new RooFormulaVar(training_cut_vars[u].c_str(), training_cut_var_formulas_data[u].c_str(), raw_args_data)));
 	}
 	//===	Training CutVar Expressions	===//
 }
@@ -172,21 +172,21 @@ void TMVA_Trainer::InitFiles()
 	tree_background->SetDirectory(file_training);
 
 	uint u;
-	double d;
-	tree_prompt->Branch(mass_name.c_str(), &d);
-	tree_nonprompt->Branch(mass_name.c_str(), &d);
-	tree_background->Branch(mass_name.c_str(), &d);
+	float f;
+	tree_prompt->Branch(mass_name.c_str(), &f);
+	tree_nonprompt->Branch(mass_name.c_str(), &f);
+	tree_background->Branch(mass_name.c_str(), &f);
 	for(u = 0; u < training_vars.size(); u++)
 	{
-		tree_prompt->Branch(training_vars[u].c_str(), &d);
-		tree_nonprompt->Branch(training_vars[u].c_str(), &d);
-		tree_background->Branch(training_vars[u].c_str(), &d);
+		tree_prompt->Branch(training_vars[u].c_str(), &f);
+		tree_nonprompt->Branch(training_vars[u].c_str(), &f);
+		tree_background->Branch(training_vars[u].c_str(), &f);
 	}
 	for(u = 0; u < training_cut_vars.size(); u++)
 	{
-		tree_prompt->Branch(training_cut_vars[u].c_str(), &d);
-		tree_nonprompt->Branch(training_cut_vars[u].c_str(), &d);
-		tree_background->Branch(training_cut_vars[u].c_str(), &d);
+		tree_prompt->Branch(training_cut_vars[u].c_str(), &f);
+		tree_nonprompt->Branch(training_cut_vars[u].c_str(), &f);
+		tree_background->Branch(training_cut_vars[u].c_str(), &f);
 	}
 
 	tree_prompt->ResetBranchAddresses();
@@ -224,6 +224,7 @@ void TMVA_Trainer::ReadPrompt()
 
 		return;
 	}
+
 	TTree* tree_prompt= (TTree*)file_training->Get(tree_name_prompt.c_str());
 	if(!tree_prompt)
 	{
@@ -235,12 +236,17 @@ void TMVA_Trainer::ReadPrompt()
 
 		return;
 	}
+
+	tree_prompt->SetDirectory(file_training);
+
 	if(file_name_prompt != "")
 	{
 		ProcessRawFile
 		(
 			file_name_prompt, tree_names_prompt, tree_prompt,
-			raw_args_prompt, raw_cuts_prompt,
+			raw_size_var_prompt,
+			raw_args_prompt, raw_types_prompt,
+			raw_cuts_prompt,
 			mass_prompt, training_args_prompt, training_cut_args_prompt,
 			true
 		);
@@ -265,7 +271,9 @@ void TMVA_Trainer::ReadPrompt()
 			warnings += ProcessRawFile
 			(
 				file_name_prompt, tree_names_prompt, tree_prompt,
-				raw_args_prompt, raw_cuts_prompt,
+				raw_size_var_prompt,
+				raw_args_prompt, raw_types_prompt,
+				raw_cuts_prompt,
 				mass_prompt, training_args_prompt, training_cut_args_prompt,
 				warnings < MAX_WARNINGS
 			);
@@ -273,6 +281,8 @@ void TMVA_Trainer::ReadPrompt()
 		file_list.close();
 	}
 
+	file_training->cd();
+	tree_prompt->Write();
 	file_training->Write();
 	file_training->Close();
 }
@@ -299,7 +309,9 @@ void TMVA_Trainer::ReadPrompt()
 int TMVA_Trainer::ProcessRawFile
 (
 	std::string raw_file_name, std::vector<std::string> raw_tree_names, TTree* tree,
-	RooArgList& raw_args, RooArgList& raw_cuts,
+	std::string raw_size_var,
+	RooArgList& raw_args, std::vector<std::string> raw_types,
+	RooArgList& raw_cuts,
 	std::shared_ptr<RooFormulaVar>& mass_arg, RooArgList& training_args, RooArgList& training_cut_args,
 	bool v
 )
@@ -369,7 +381,29 @@ int TMVA_Trainer::ProcessRawFile
 		raw_tree->AddFriend(frnd);
 	}
 
-	double raw_vals[raw_args.getSize()];
+	raw_tree->ResetBranchAddresses();
+	
+	int raw_size = 1;
+	if(raw_size_var != "")
+	{
+		if(!raw_tree->GetBranch(raw_size_var.c_str()))
+		{
+			if(v)
+			{
+				std::cout << std::endl;
+	        	        std::cout << "Could not get branch:" << std::endl;
+				std::cout << "\t" << raw_size_var << std::endl;
+	        	        std::cout << "From trees in file:" << std::endl;
+	        	        std::cout << "\t" << raw_file_name << std::endl;
+	        	        std::cout << "Exiting" << std::endl;
+				std::cout << std::endl;
+			}
+		}
+		raw_tree->SetBranchStatus(raw_size_var.c_str(), 1);
+		raw_tree->SetBranchAddress(raw_size_var.c_str(), &raw_size);
+	}
+
+	std::vector<void*> ptrs = {};
 	for(u = 0; u < raw_args.getSize(); u++)
 	{
 		if(!raw_tree->GetBranch(raw_args[u].GetName()))
@@ -387,14 +421,12 @@ int TMVA_Trainer::ProcessRawFile
 
 			return 1;
 		}
-
-		raw_tree->SetBranchStatus(raw_args[u].GetName(), 1);
-		raw_tree->SetBranchAddress(raw_args[u].GetName(), &(raw_vals[u]));
+		ptrs.push_back(MakeVoidAddress(raw_types[u], raw_tree, raw_args[u].GetName()));
 	}
 
 	tree->ResetBranchAddresses();
 
-	double mass;
+	float mass;
 	if(!tree->GetBranch(mass_arg->GetName()))
 	{
 		if(v)
@@ -412,7 +444,7 @@ int TMVA_Trainer::ProcessRawFile
 	tree->SetBranchStatus(mass_arg->GetName(), 1);
 	tree->SetBranchAddress(mass_arg->GetName(), &mass);
 
-	double training_vars[training_args.getSize()];
+	float training_vars[training_args.getSize()];
 	for(u = 0; u < training_args.getSize(); u++)
 	{
 		if(!tree->GetBranch(training_args[u].GetName()))
@@ -433,7 +465,7 @@ int TMVA_Trainer::ProcessRawFile
 		tree->SetBranchAddress(training_args[u].GetName(), &(training_vars[u]));
 	}
 
-	double training_cut_vars[training_cut_args.getSize()];
+	float training_cut_vars[training_cut_args.getSize()];
 	for(u = 0; u < training_cut_args.getSize(); u++)
 	{
 		if(!tree->GetBranch(training_cut_args[u].GetName()))
@@ -454,38 +486,58 @@ int TMVA_Trainer::ProcessRawFile
 		tree->SetBranchAddress(training_cut_args[u].GetName(), &(training_cut_vars[u]));
 	}
 
+	int i;
 	Long64_t n;
 	bool b;
 
 	for(n = 0; n < raw_tree->GetEntriesFast(); n++)
 	{
 		raw_tree->GetEntry(n);
+		for(i = 0; i < raw_size; i++)
+		{
+			for(u = 0; u < raw_args.getSize(); u++)
+			{
+				((RooRealVar*)&(raw_args[u]))->setVal(ReadVoidAddress(raw_types[u], ptrs[u], i));
+			}
 
-		for(u = 0; u < raw_args.getSize(); u++)
-		{
-			((RooRealVar*)&(raw_args[u]))->setVal(raw_vals[u]);
-		}
-		b = true;
-		for(u = 0; u < raw_cuts.getSize(); u++)
-		{
-			if(((RooFormulaVar*)&(raw_cuts[u]))->getValV() == 0.0)b = false;
-		}
-		if(!b)continue;
+			b = true;
+			for(u = 0; u < raw_cuts.getSize(); u++)
+			{
+				if(((RooFormulaVar*)&(raw_cuts[u]))->getValV() == 0.0)b = false;
+			}
+			if(!b)continue;
 
-		mass = mass_arg->getValV();
-		for(u = 0; u < training_args.getSize(); u++)
-		{
-			training_vars[u] = ((RooFormulaVar*)&(training_args[u]))->getValV();
-		}
-		for(u = 0; u < training_cut_args.getSize(); u++)
-		{
-			training_cut_vars[u] = ((RooFormulaVar*)&(training_cut_args[u]))->getValV();
-		}
+			mass = mass_arg->getValV();
+			for(u = 0; u < training_args.getSize(); u++)
+			{
+				training_vars[u] = ((RooFormulaVar*)&(training_args[u]))->getValV();
+			}
+			for(u = 0; u < training_cut_args.getSize(); u++)
+			{
+				training_cut_vars[u] = ((RooFormulaVar*)&(training_cut_args[u]))->getValV();
+			}
 
-		tree->Fill();
+			tree->Fill();
+		}
 	}
 
+	raw_tree->ResetBranchAddresses();
+	tree->ResetBranchAddresses();
+
+	raw_file->Close();
+
 	return 0;
+}
+
+void TMVA_Trainer::AddRawVar(std::string formula_prompt, std::string type_prompt, std::string formula_nonprompt, std::string type_nonprompt, std::string formula_data, std::string type_data)
+{
+	raw_vars_prompt.push_back(formula_prompt);
+	raw_vars_nonprompt.push_back(formula_nonprompt);
+	raw_vars_data.push_back(formula_data);
+
+	raw_types_prompt.push_back(type_prompt);
+	raw_types_nonprompt.push_back(type_nonprompt);
+	raw_types_data.push_back(type_data);
 }
 
 void TMVA_Trainer::AddTrainingVar(std::string var, std::string formula_prompt, std::string formula_nonprompt, std::string formula_data)
@@ -504,6 +556,51 @@ void TMVA_Trainer::AddTrainingCutVar(std::string var, std::string formula_prompt
 	training_cut_var_formulas_prompt.push_back(formula_prompt);
 	training_cut_var_formulas_nonprompt.push_back(formula_nonprompt);
 	training_cut_var_formulas_data.push_back(formula_data);
+}
+
+template <typename T>
+void* TMVA_Trainer::MakeVoidAddressTemplate(TTree* tree, std::string branch)
+{
+	void* ptr = (void*)(new T[MAX_SIZE]);
+
+	if(!tree)return ptr;
+	if(!tree->GetBranch(branch.c_str()))return ptr;
+
+	tree->SetBranchStatus(branch.c_str(), 1);
+	tree->SetBranchAddress(branch.c_str(), (T*)ptr);
+
+	return ptr;
+}
+
+template <typename T>
+T TMVA_Trainer::ReadVoidAddressTemplate(void* ptr, int i)
+{
+	if(!ptr)return 0.0;
+	if(!(0 <= i and i < MAX_SIZE))return 0.0;
+
+	return ((T*)ptr)[i];
+}
+
+void* TMVA_Trainer::MakeVoidAddress(std::string type, TTree* tree, std::string branch)
+{
+	std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c){return std::tolower(c);});
+
+	if(type == "i" or type == "int")return MakeVoidAddressTemplate<int>(tree, branch);
+	if(type == "f" or type == "float")return MakeVoidAddressTemplate<float>(tree, branch);
+	if(type == "d" or type == "double")return MakeVoidAddressTemplate<double>(tree, branch);
+
+	return (void*)nullptr;
+}
+
+float TMVA_Trainer::ReadVoidAddress(std::string type, void* ptr, int i)
+{
+	std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c){return std::tolower(c);});
+
+	if(type == "i" or type == "int")return ReadVoidAddressTemplate<int>(ptr, i);
+	if(type == "f" or type == "float")return ReadVoidAddressTemplate<float>(ptr, i);
+	if(type == "d" or type == "double")return ReadVoidAddressTemplate<double>(ptr, i);
+
+	return 0.0;
 }
 
 /*

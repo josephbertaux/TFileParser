@@ -340,17 +340,17 @@ void TFileParser::Clear()
 
 int TFileParser::Init(bool v)
 {
+	source_args.clear();
+	source_cuts.clear();
+	target_args.clear();
+	target_cuts.clear();
+
 	if(source_var_names.size() == 0)
 	{
 		if(v)
 		{
 			std::cout << "No source vars have been added" << std::endl;
 		}
-
-		source_args.clear();
-		source_cuts.clear();
-		target_args.clear();
-		target_cuts.clear();
 		return 1;
 	}
 
@@ -360,34 +360,22 @@ int TFileParser::Init(bool v)
 		{
 			std::cout << "No target vars have been added" << std::endl;
 		}
-
-		source_args.clear();
-		source_cuts.clear();
-		target_args.clear();
-		target_cuts.clear();
 		return 1;
 	}
 
 	uint u;
-	source_args.clear();
 	for(u = 0; u < source_var_names.size(); u++)
 	{
 		source_args.addOwned(*(new RooRealVar(source_var_names[u].c_str(), source_var_names[u].c_str(), 0.0, -FLT_MAX, FLT_MAX)));
 	}
-
-	source_cuts.clear();
 	for(u = 0; u < source_cut_names.size(); u++)
 	{
 		source_cuts.addOwned(*(new RooFormulaVar(source_cut_names[u].c_str(), source_cut_exprs[u].c_str(), source_args)));
 	}
-
-	target_args.clear();
 	for(u = 0; u < target_var_names.size(); u++)
 	{
 		target_args.addOwned(*(new RooFormulaVar(target_var_names[u].c_str(), target_var_exprs[u].c_str(), source_args)));
 	}
-
-	target_cuts.clear();
 	for(u = 0; u < target_cut_names.size(); u++)
 	{
 		target_cuts.addOwned(*(new RooFormulaVar(target_cut_names[u].c_str(), target_cut_exprs[u].c_str(), target_args)));
@@ -493,7 +481,6 @@ int TFileParser::RecreateTarget()
 		target_file->Close();
 		return 1;
 	}
-
 
 	if(target_ntpl_name == "")
 	{

@@ -456,6 +456,21 @@ int TFileParser::CheckTarget(bool v)
 		target_file->Close();
 		return 1;
 	}
+	int b = false;
+	for(uint u = 0; u < target_var_names.size(); u++)
+	{
+		if(!target_ntpl->GetBranch(target_var_names[u].c_str()))
+		{
+			if(v)
+			{
+				std::cout << "\tCould not get target branch:" << std::endl;
+				std::cout << "\t" << source_var_names[u] << std::endl;
+			}
+			b = true;
+			continue;
+		}
+	}
+	if(b)return 1;
 
 	target_file->Close();
 	return 0;
@@ -525,7 +540,9 @@ int TFileParser::UpdateTarget()
 	Init(true);
 
 	TFile* target_file = TFile::Open(target_file_name.c_str(), "UPDATE");
+	if(!target_file)return 1;	//this guard should be unnecessary since we've checked the target
 	TTree* target_ntpl = (TTree*)target_file->Get(target_ntpl_name.c_str());
+	if(!target_ntpl)return 1;	//this guard should be unnecessary since we've checked the target
 	target_ntpl->SetDirectory(target_file);
 
 	int i;			//to store the success of UpdateNtuple

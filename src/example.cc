@@ -21,10 +21,10 @@ int main()
 //	prsr.starting_index = 0;	//The line (inclusive) to start reading the file list
 //	prsr.stopping_index = -1;	//The line (exclusive) to stop reading the list, will read to the end if this is less than the starting index
 
-	//If the source files have arrays of integral types instead of integarl types:
+	//If the source files have arrays of integral types instead of integral types:
 //	prsr.source_var_sizes = "size";	//The name of the branch of type int that represents the sizes of the other branches
 
-	//The branches we want to get from "my_tree"
+	//The branches we want to get from any of "my_tree" or "my_friend"
 	prsr.AddSourceVar("a", "F");	//specifying there is a branch "a" in "my_tree" of type float
 	prsr.AddSourceVar("b");		//assumed to be type float by default
 	prsr.AddSourceVar("c", "I");	//type int

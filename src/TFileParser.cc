@@ -83,40 +83,39 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	}
 
 	TTree* reader_tree = (TTree*)reader_file->Get(source_tree_names[0].c_str());
-	if(!reader_tree)
+	if(v)
 	{
-		if(v)
+		if(!reader_tree)
 		{
 			std::cout << "\tCould not get tree:" << std::endl;
-			std::cout << "\t" << source_tree_names[0] << std::endl;
+			std::cout << "\t\t" << source_tree_names[0] << std::endl;
+		}
+		if(reader_tree)
+		{
+			std::cout << "\tAdded friend:" << std::endl;
+			std::cout << "\t\t" << source_tree_names[0] << std::endl;
 		}
 	}
 	TTree* friend_tree = (TTree*)nullptr;
 	for(u = 1; u < source_tree_names.size(); u++)
 	{
 		friend_tree = (TTree*)reader_file->Get(source_tree_names[u].c_str());
-		if(friend_tree)
-		{
-			if(reader_tree)	//here
-			{
-				reader_tree->AddFriend(friend_tree);
-				std::cout << "\tAdded friend:" << std::endl;
-				std::cout << "\t" << source_tree_names[u] << std::endl;
-			}
-			if(!reader_tree)
-			{
-				reader_tree = friend_tree;
-				std::cout << "\tOverwrote with friend:" << std::endl;
-				std::cout << "\t" << source_tree_names[u] << std::endl;
-			}
-
-			continue;
-		}
+		if(friend_tree and reader_tree)reader_tree->AddFriend(friend_tree);
+		if(friend_tree and !reader_tree)reader_tree = friend_tree;
 		if(v)
 		{
-			std::cout << "\tCould not get tree:" << std::endl;
-			std::cout << "\t" << source_tree_names[u] << std::endl;
+			if(!friend_tree)
+			{
+				std::cout << "\tCould not get tree:" << std::endl;
+				std::cout << "\t\t" << source_tree_names[u] << std::endl;
+			}
+			if(friend_tree)
+			{
+				std::cout << "\tAdded friend:" << std::endl;
+				std::cout << "\t\t" << source_tree_names[u] << std::endl;
+			}
 		}
+
 	}
 
 	reader_tree->ResetBranchAddresses();
@@ -127,7 +126,7 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 			if(v)
 			{
 				std::cout << "\tCould not get source var sizes branch:" << std::endl;
-				std::cout << "\t" << source_var_sizes << std::endl;
+				std::cout << "\t\t" << source_var_sizes << std::endl;
 			}
 			b = true;
 		}
@@ -145,7 +144,7 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 			if(v)
 			{
 				std::cout << "\tCould not get source branch:" << std::endl;
-				std::cout << "\t" << source_var_names[u] << std::endl;
+				std::cout << "\t\t" << source_var_names[u] << std::endl;
 			}
 			b = true;
 			continue;
@@ -157,12 +156,12 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	float vals[target_var_names.size()] = {0.0};
 	for(u = 0; u < target_var_names.size(); u++)
 	{
-		if(!target_tree->GetBranch(target_var_names[u].c_str()))
+		if(!target_tree->GetBranch(target_var_names[u].c_str()))	//This guard should be unnecessary since we've checked the target
 		{
 			if(v)
 			{
 				std::cout << "\tCould not get target branch:" << std::endl;
-				std::cout << "\t" << source_var_names[u] << std::endl;
+				std::cout << "\t\t" << source_var_names[u] << std::endl;
 			}
 			b = true;
 			continue;

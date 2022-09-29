@@ -21,8 +21,9 @@ int main()
 //	prsr.starting_index = 0;	//The line (inclusive) to start reading the file list
 //	prsr.stopping_index = -1;	//The line (exclusive) to stop reading the list, will read to the end if this is less than the starting index
 
-	//If the source files have arrays of integral types instead of integral types:
+	//If the source files have arrays of integral types instead of integral types (e.g., a "size" branch and other branches are I[], F[], D[])
 //	prsr.source_var_sizes = "size";	//The name of the branch of type int that represents the sizes of the other branches
+//	prsr.max_size = 3000;		//The maximum size of any entry of any branch--fine if it is too large but will segfault if too small
 
 	//The branches we want to get from any of "my_tree" or "my_friend"
 	prsr.AddSourceVar("a", "F");	//specifying there is a branch "a" in "my_tree" of type float

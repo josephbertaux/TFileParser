@@ -1,12 +1,12 @@
-#include "TDatasetParser.h"
+#include "TFileParser.h"
 
 void make_example();
 
 int main()
 {
-	//make_example();		//makes the source file we read from
+	make_example();		//makes the source file we read from
 
-	TDatasetParser prsr;
+	TFileParser prsr;
 
 	prsr.target_file_name = "example_target.root";
 	prsr.target_ntpl_name = "my_ntuple";
@@ -28,6 +28,7 @@ int main()
 	prsr.AddSourceVar("a", "F");	//specifying there is a branch "a" in "my_tree" of type float
 	prsr.AddSourceVar("b");		//assumed to be type float by default
 	prsr.AddSourceVar("c", "I");	//type int
+	prsr.AddSourceVar("d", "D");	//type double
 
 	//Cuts placed on the data we read in, the expressions are in terms of the SourceVars we've added
 	prsr.AddSourceCut("a_cut", "a > 0.0");
@@ -37,13 +38,14 @@ int main()
 	prsr.AddTargetVar("aa", "a + 10.0 * a");
 	prsr.AddTargetVar("b");		//Assumes the expression is just "b", this branch is the same in target and source
 	prsr.AddTargetVar("ac", "a + c");
+	prsr.AddTargetVar("d");
 
 	//More cuts placed on the data, this time in terms of the TargetVars we've added
 	prsr.AddTargetCut("ac <= 11");	//Will make a name ("TargetCut0") for us if we are feeling unoriginal	
 
-	//At this point in the code the TDatasetParser is configured, we can make the target file
+	//At this point in the code the TFileParser is configured, we can make the target file
 	prsr.RecreateTarget();		//Do this if you want to remake the target file
-	//prsr.UpdateTarget();		//Do this if you want to only append to the target file, if it exists
+	prsr.UpdateTarget();		//Do this if you want to only append to the target file, if it exists
 
 	return 0;
 }
@@ -51,15 +53,12 @@ int main()
 void make_example()
 {
 	TFile* example_file = TFile::Open("example_source.root", "RECREATE");
+
 	TTree* example_tree = new TTree("my_tree", "my_tree");
-
-	float a;
-	example_tree->Branch("a", &a);
-	float b;
-	example_tree->Branch("b", &b);
-	int c;
-	example_tree->Branch("c", &c);
-
+	example_tree->SetDirectory(example_file);
+	float a;	example_tree->Branch("a", &a);
+	float b;	example_tree->Branch("b", &b);
+	int c;		example_tree->Branch("c", &c);
 	for(int i = -5; i < 5; i++)
 	{
 		a = i;
@@ -68,9 +67,21 @@ void make_example()
 
 		example_tree->Fill();
 	}
+	TTree* friend_tree = new TTree("my_frnd", "my_frnd");
+	friend_tree->SetDirectory(example_file);
+	double d;	friend_tree->Branch("d", &d);
+	for(int i = -5; i < 5; i++)
+	{
+		d = i / 2.0;
+
+		friend_tree->Fill();
+	}
 
 	example_file->cd();
+
 	example_tree->Write();
+	friend_tree->Write();
+
 	example_file->Write();
 	example_file->Close();
 }

@@ -1,5 +1,5 @@
-#ifndef T_DATASET_PARSER_H
-#define T_DATASET_PARSER_H
+#ifndef TFILE_PARSER_H
+#define TFILE_PARSER_H
 
 #include <cstdlib>
 #include <iostream>
@@ -18,7 +18,7 @@
 #include "RooFormulaVar.h"
 #include "RooArgList.h"
 
-class TDatasetParser
+class TFileParser
 {
 protected:
         std::vector<std::string> source_tree_names = {};	//The names of the TTrees in each source file to be retrieved
@@ -89,7 +89,7 @@ public:
 	std::string source_var_sizes = "";	//If the TTrees in the source file contain arrays of integral types, this is the branch that specifies the multiplicity 
 	int max_size = 1;			//the highest possible multiplicity--if this isn't large enough, the program will segfault
 
-	TDatasetParser();
+	TFileParser();
 
 	void AddSourceTree(std::string);
 	void AddSourceVar(std::string, std::string);
@@ -106,9 +106,8 @@ public:
 
 	int Init(bool);	//Initializes the RooArgLists, outputs errors if bool is true
 	int CheckTarget(bool);	//Returns 0 if target exists and is not a zombie, returns 1 otherwise (outputs a description with return 1 if bool is true)
-	int MakeTarget();	//Makes the target file with an empty ntuple that has appropriate branches
+	int RecreateTarget();	//Recreates the target file and an empty target ntuple with the correct branches
 	int UpdateTarget();	//Updates the target only if it exists
-	int RecreateTarget();	//Creates the target and updates it; equivalent to calling MakeTarget() and, if successful, UpdateTarget()
 
 
 	void AddSourceVar(std::string s){AddSourceVar(s, "");}

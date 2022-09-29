@@ -1,8 +1,8 @@
-#include "TDatasetParser.h"
+#include "TFileParser.h"
 
 //private member functions
 
-void* TDatasetParser::MakeVoidAddress(std::string type, TTree* tree, std::string branch)
+void* TFileParser::MakeVoidAddress(std::string type, TTree* tree, std::string branch)
 {
 	std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c){return std::tolower(c);});
 
@@ -13,7 +13,7 @@ void* TDatasetParser::MakeVoidAddress(std::string type, TTree* tree, std::string
 	return (void*)nullptr;
 }
 
-float TDatasetParser::ReadVoidAddress(std::string type, void* ptr, int i)
+float TFileParser::ReadVoidAddress(std::string type, void* ptr, int i)
 {
 	std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c){return std::tolower(c);});
 
@@ -24,14 +24,14 @@ float TDatasetParser::ReadVoidAddress(std::string type, void* ptr, int i)
 	return 0.0;
 }
 
-void TDatasetParser::FreeVoidAddress(std::string type, void* ptr)
+void TFileParser::FreeVoidAddress(std::string type, void* ptr)
 {
 	if(type == "i" or type == "int")FreeVoidAddressTemplate<int>(ptr);
 	if(type == "f" or type == "float")FreeVoidAddressTemplate<float>(ptr);
 	if(type == "d" or type == "double")FreeVoidAddressTemplate<double>(ptr);
 }
 
-int TDatasetParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, bool v)
+int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, bool v)
 {
 	if(!target_tree)return 1;
 
@@ -97,8 +97,18 @@ int TDatasetParser::UpdateNtuple(TTree* target_tree, std::string reader_file_nam
 		friend_tree = (TTree*)reader_file->Get(source_tree_names[u].c_str());
 		if(friend_tree)
 		{
-			if(reader_tree)reader_tree->AddFriend(friend_tree);
-			else reader_tree = friend_tree;
+			if(reader_tree)	//here
+			{
+				reader_tree->AddFriend(friend_tree);
+				std::cout << "\tAdded friend:" << std::endl;
+				std::cout << "\t" << source_tree_names[u] << std::endl;
+			}
+			if(!reader_tree)
+			{
+				reader_tree = friend_tree;
+				std::cout << "\tOverwrote with friend:" << std::endl;
+				std::cout << "\t" << source_tree_names[u] << std::endl;
+			}
 
 			continue;
 		}
@@ -222,7 +232,7 @@ int TDatasetParser::UpdateNtuple(TTree* target_tree, std::string reader_file_nam
 
 //public member functions
 
-TDatasetParser::TDatasetParser()
+TFileParser::TFileParser()
 {
 	Clear();
 
@@ -238,14 +248,14 @@ TDatasetParser::TDatasetParser()
 	max_size = 1;
 }
 
-void TDatasetParser::AddSourceTree(std::string name)
+void TFileParser::AddSourceTree(std::string name)
 {
 	if(name == "")return;
 
 	source_tree_names.push_back(name);
 }
 
-void TDatasetParser::AddSourceVar(std::string name, std::string type)
+void TFileParser::AddSourceVar(std::string name, std::string type)
 {
 	if(name == "")return;
 	if(type == "")type = "F";
@@ -259,7 +269,7 @@ void TDatasetParser::AddSourceVar(std::string name, std::string type)
 	source_var_types.push_back(type);
 }
 
-void TDatasetParser::AddSourceCut(std::string name, std::string expr)
+void TFileParser::AddSourceCut(std::string name, std::string expr)
 {
 	if(expr == "")return;
 	if(name == "")name = "SourceCut" + std::to_string(source_cut_exprs.size());
@@ -268,7 +278,7 @@ void TDatasetParser::AddSourceCut(std::string name, std::string expr)
 	source_cut_exprs.push_back(expr);
 }
 
-void TDatasetParser::AddTargetVar(std::string name, std::string expr)
+void TFileParser::AddTargetVar(std::string name, std::string expr)
 {
 	if(name == "")return;
 	if(expr == "")expr = name;
@@ -282,7 +292,7 @@ void TDatasetParser::AddTargetVar(std::string name, std::string expr)
 	target_var_exprs.push_back(expr);
 }
 
-void TDatasetParser::AddTargetCut(std::string name, std::string expr)
+void TFileParser::AddTargetCut(std::string name, std::string expr)
 {
 	if(expr == "")return;
 	if(name == "")name = "TargetCut" + std::to_string(target_cut_exprs.size());
@@ -291,36 +301,36 @@ void TDatasetParser::AddTargetCut(std::string name, std::string expr)
 	target_cut_exprs.push_back(expr);
 }
 
-void TDatasetParser::ClearSourceTrees()
+void TFileParser::ClearSourceTrees()
 {
 	source_tree_names.clear();
 }
 
-void TDatasetParser::ClearSourceVars()
+void TFileParser::ClearSourceVars()
 {
 	source_var_names.clear();
 	source_var_types.clear();
 }
 
-void TDatasetParser::ClearSourceCuts()
+void TFileParser::ClearSourceCuts()
 {
 	source_cut_names.clear();
 	source_cut_exprs.clear();
 }
 
-void TDatasetParser::ClearTargetVars()
+void TFileParser::ClearTargetVars()
 {
 	target_var_names.clear();
 	target_var_exprs.clear();
 }
 
-void TDatasetParser::ClearTargetCuts()
+void TFileParser::ClearTargetCuts()
 {
 	target_cut_names.clear();
 	target_cut_exprs.clear();
 }
 
-void TDatasetParser::Clear()
+void TFileParser::Clear()
 {
 	ClearSourceTrees();
 	ClearSourceVars();
@@ -329,7 +339,7 @@ void TDatasetParser::Clear()
 	ClearTargetCuts();
 }
 
-int TDatasetParser::Init(bool v)
+int TFileParser::Init(bool v)
 {
 	if(source_var_names.size() == 0)
 	{
@@ -387,7 +397,7 @@ int TDatasetParser::Init(bool v)
 	return 0;
 }
 
-int TDatasetParser::CheckTarget(bool v)
+int TFileParser::CheckTarget(bool v)
 {
 	if(target_file_name == "")
 	{
@@ -451,60 +461,57 @@ int TDatasetParser::CheckTarget(bool v)
 	return 0;
 }
 
-int TDatasetParser::MakeTarget()
+int TFileParser::RecreateTarget()
 {
-	if(CheckTarget(false))
+	if(target_file_name == "")
 	{
-		if(target_file_name == "")
-		{
-			std::cout << "Member 'target_file_name' not set" << std::endl;
+		std::cout << "Member 'target_file_name' not set" << std::endl;
 
-			return 1;
-		}
-		TFile* target_file = TFile::Open(target_file_name.c_str(), "RECREATE");
-		if(target_file->IsZombie())
-		{
-			std::cout << "File:" << std::endl;
-			std::cout << "\t" << target_file_name << std::endl;
-			std::cout << "Is zombie" << std::endl;
-
-			target_file->Close();
-			return 1;
-		}
-
-
-		if(target_ntpl_name == "")
-		{
-			std::cout << "Member 'target_ntpl_name' not set" << std::endl;
-
-			target_file->Close();
-			return 1;
-		}
-		if(target_var_names.size() == 0)
-		{
-			std::cout << "No target vars have been added" << std::endl;
-
-			target_file->Close();
-			return 1;
-		}
-		TNtuple* target_ntpl = new TNtuple(target_ntpl_name.c_str(), target_ntpl_name.c_str(), "");
-		target_ntpl->SetDirectory(target_file);
-		float f = 0.0;
-		for(uint u = 0; u < target_var_names.size(); u++)
-		{
-			target_ntpl->Branch(target_var_names[u].c_str(), &f);	//Overload 10 of 13 of TTree::Branch()
-		}
-
-		target_file->cd();
-		target_ntpl->Write();
-		target_file->Write();
-		target_file->Close();
+		return 1;
 	}
+	TFile* target_file = TFile::Open(target_file_name.c_str(), "RECREATE");
+	if(target_file->IsZombie())
+	{
+		std::cout << "File:" << std::endl;
+		std::cout << "\t" << target_file_name << std::endl;
+		std::cout << "Is zombie" << std::endl;
+
+		target_file->Close();
+		return 1;
+	}
+
+
+	if(target_ntpl_name == "")
+	{
+		std::cout << "Member 'target_ntpl_name' not set" << std::endl;
+
+		target_file->Close();
+		return 1;
+	}
+	if(target_var_names.size() == 0)
+	{
+		std::cout << "No target vars have been added" << std::endl;
+
+		target_file->Close();
+		return 1;
+	}
+	TNtuple* target_ntpl = new TNtuple(target_ntpl_name.c_str(), target_ntpl_name.c_str(), "");
+	target_ntpl->SetDirectory(target_file);
+	float f = 0.0;
+	for(uint u = 0; u < target_var_names.size(); u++)
+	{
+		target_ntpl->Branch(target_var_names[u].c_str(), &f);	//Overload 10 of 13 of TTree::Branch()
+	}
+
+	target_file->cd();
+	target_ntpl->Write();
+	target_file->Write();
+	target_file->Close();
 
 	return 0;
 }
 
-int TDatasetParser::UpdateTarget()
+int TFileParser::UpdateTarget()
 {
 	if(CheckTarget(true))return 1;
 
@@ -589,10 +596,4 @@ int TDatasetParser::UpdateTarget()
 	target_file->Close();
 	if(b)return 0;
 	return 1;
-}
-
-int TDatasetParser::RecreateTarget()
-{
-	if(MakeTarget())return 1;
-	return UpdateTarget();
 }

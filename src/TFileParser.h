@@ -2,17 +2,15 @@
 #define TFILE_PARSER_H
 
 #include <cstdlib>
-#include <iostream>
-#include <fstream>
 #include <string>
 #include <vector>
-#include <memory>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include "TFile.h"
 #include "TTree.h"
 #include "TNtuple.h"
-#include "TSystem.h"
-#include "TROOT.h"
 
 #include "RooRealVar.h"
 #include "RooFormulaVar.h"
@@ -104,16 +102,23 @@ public:
 	void ClearTargetCuts();
 	void Clear();
 
-	int Init(bool);	//Initializes the RooArgLists, outputs errors if bool is true
-	int CheckTarget(bool);	//Returns 0 if target exists and is not a zombie, returns 1 otherwise (outputs a description with return 1 if bool is true)
-	int RecreateTarget();	//Recreates the target file and an empty target ntuple with the correct branches
-	int UpdateTarget();	//Updates the target only if it exists
+					//bool is if error output is to be written to std::out
+	int Init(bool);			//Initializes the RooArgLists
+	int CheckTarget(bool);		//Returns 0 if target exists and is not a zombie, returns 1 otherwise
+	int UpdateTarget(bool);		//Updates the target only if it exists
+	int RecreateTarget(bool);	//Recreates the target file with an empty target ntuple with the correct branches
 
 
+	//overloads
 	void AddSourceVar(std::string s){AddSourceVar(s, "");}
 	void AddSourceCut(std::string s){AddSourceVar("", s);}
 	void AddTargetVar(std::string s){AddTargetVar(s, s);}
 	void AddTargetCut(std::string s){AddTargetCut("", s);}
+
+	int Init(){return Init(true);}
+	int CheckTarget(){return CheckTarget(true);}
+	int UpdateTarget(){return UpdateTarget(true);}
+	int RecreateTarget(){return RecreateTarget(true);}
 };
 
 #endif

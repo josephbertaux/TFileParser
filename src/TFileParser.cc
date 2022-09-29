@@ -331,15 +331,34 @@ void TFileParser::ClearTargetCuts()
 
 void TFileParser::Clear()
 {
+	target_file_name = "";
+	target_ntpl_name = "";
+
 	ClearSourceTrees();
+
+	source_file_name = "";
+	source_list_name = "";
+	starting_index = 0;
+	stopping_index = -1;
+
+	max_warnings = -1;
+
+	source_var_sizes = "";
+	max_size = 1;
+
 	ClearSourceVars();
 	ClearSourceCuts();
 	ClearTargetVars();
 	ClearTargetCuts();
 }
 
-int TFileParser::Init(bool v)
+int TFileParser::Init(bool w)
 {
+	int return_val = 0;
+	std::stringstream output_str;
+
+	uint u = 0;
+
 	source_args.clear();
 	source_cuts.clear();
 	target_args.clear();
@@ -347,23 +366,17 @@ int TFileParser::Init(bool v)
 
 	if(source_var_names.size() == 0)
 	{
-		if(v)
-		{
-			std::cout << "No source vars have been added" << std::endl;
-		}
-		return 1;
+		output_str << "No source vars have been added" << std::endl;
+		return_val = 1;
+		goto label;
 	}
-
 	if(target_var_names.size() == 0)
 	{
-		if(v)
-		{
-			std::cout << "No target vars have been added" << std::endl;
-		}
-		return 1;
+		output_str << "No target vars have been added" << std::endl;
+		return_val = 1;
+		goto label;
 	}
 
-	uint u;
 	for(u = 0; u < source_var_names.size(); u++)
 	{
 		source_args.addOwned(*(new RooRealVar(source_var_names[u].c_str(), source_var_names[u].c_str(), 0.0, -FLT_MAX, FLT_MAX)));
@@ -381,195 +394,150 @@ int TFileParser::Init(bool v)
 		target_cuts.addOwned(*(new RooFormulaVar(target_cut_names[u].c_str(), target_cut_exprs[u].c_str(), target_args)));
 	}
 
-	return 0;
+	label:
+	output_str << std::ends;
+	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
 }
 
-int TFileParser::CheckTarget(bool v)
+int TFileParser::CheckTarget(bool w)
 {
+	int return_val = 0;
+	std::stringstream output_str;
+
+	bool b = false;
+	uint u = 0;
+	TFile* target_file = (TFile*)nullptr;
+	TNtuple* target_ntpl = (TNtuple*)nullptr;
+
 	if(target_file_name == "")
 	{
-		if(v)
-		{
-			std::cout << "Member 'target_file_name' not set" << std::endl;
-		}
-
-		return 1;
+		output_str << "Member 'target_file_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
 	}
-	TFile* target_file = TFile::Open(target_file_name.c_str(), "READ");
+	target_file = TFile::Open(target_file_name.c_str(), "READ");
 	if(!target_file)
 	{
-		if(v)
-		{
-			std::cout << "Could not get file:" << std::endl;
-			std::cout << "\t" << target_file_name << std::endl;
-		}
-
-		return 1;
+		output_str << "Could not get file:" << std::endl;
+		output_str << "\t" << target_file_name << std::endl;
+		return_val = 1;
+		goto label;
 	}
 	if(target_file->IsZombie())
 	{
-		if(v)
-		{
-			std::cout << "File:" << std::endl;
-			std::cout << "\t" << target_file_name << std::endl;
-			std::cout << "Is zombie" << std::endl;
-		}
-
-		target_file->Close();
-		return 1;
+		output_str << "File:" << std::endl;
+		output_str << "\t" << target_file_name << std::endl;
+		output_str << "Is zombie" << std::endl;
+		return_val = 1;
+		goto label;
 	}
 
 	if(target_ntpl_name == "")
 	{
-		if(v)
-		{
-			std::cout << "Member 'target_ntpl_name' not set" << std::endl;
-		}
-
-		target_file->Close();
-		return 1;
+		output_str << "Member 'target_ntpl_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
 	}
-	TNtuple* target_ntpl = (TNtuple*)target_file->Get(target_ntpl_name.c_str());
+	output_str << "In file:" << std::endl;
+	target_ntpl = (TNtuple*)target_file->Get(target_ntpl_name.c_str());
 	if(!target_ntpl)
 	{
-		if(v)
-		{
-			std::cout << "Could not get ntuple:" << std::endl;
-			std::cout << "\t" << target_ntpl_name << std::endl;
-			std::cout << "From file:" << std::endl;
-			std::cout << "\t" << target_file_name << std::endl;
-		}
-
-		target_file->Close();
-		return 1;
+		output_str << "\tCould not get ntuple:" << std::endl;
+		output_str << "\t\t" << target_ntpl_name << std::endl;
+		return_val = 1;
+		goto label;
 	}
-	int b = false;
-	for(uint u = 0; u < target_var_names.size(); u++)
+	for(u = 0; u < target_var_names.size(); u++)
 	{
 		if(!target_ntpl->GetBranch(target_var_names[u].c_str()))
 		{
-			if(v)
-			{
-				std::cout << "\tCould not get target branch:" << std::endl;
-				std::cout << "\t" << source_var_names[u] << std::endl;
-			}
+			output_str << "\tCould not get target branch:" << std::endl;
+			output_str << "\t\t" << source_var_names[u] << std::endl;
 			b = true;
-			continue;
 		}
 	}
-	if(b)return 1;
+	if(b)
+	{
+		return_val = 1;
+		goto label;
+	}
 
-	target_file->Close();
-	return 0;
+	label:
+	if(target_file)target_file->Close();
+	output_str << std::ends;
+	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
 }
 
-int TFileParser::RecreateTarget()
+int TFileParser::UpdateTarget(bool w)
 {
-	if(target_file_name == "")
+	int return_val = 1;
+	std::stringstream output_str;
+
+	int warnings = 0;
+	int index = -1;
+	std::string current_file_name = "";
+	TFile* target_file = (TFile*)nullptr;
+	TNtuple* target_ntpl = (TNtuple*)nullptr;
+
+	if(CheckTarget(w))
 	{
-		std::cout << "Member 'target_file_name' not set" << std::endl;
-
-		return 1;
+		return_val = 1;
+		goto label;
 	}
-	TFile* target_file = TFile::Open(target_file_name.c_str(), "RECREATE");
-	if(target_file->IsZombie())
-	{
-		std::cout << "File:" << std::endl;
-		std::cout << "\t" << target_file_name << std::endl;
-		std::cout << "Is zombie" << std::endl;
-
-		target_file->Close();
-		return 1;
-	}
-
-	if(target_ntpl_name == "")
-	{
-		std::cout << "Member 'target_ntpl_name' not set" << std::endl;
-
-		target_file->Close();
-		return 1;
-	}
-	if(target_var_names.size() == 0)
-	{
-		std::cout << "No target vars have been added" << std::endl;
-
-		target_file->Close();
-		return 1;
-	}
-	TNtuple* target_ntpl = new TNtuple(target_ntpl_name.c_str(), target_ntpl_name.c_str(), "");
-	target_ntpl->SetDirectory(target_file);
-	float f = 0.0;
-	for(uint u = 0; u < target_var_names.size(); u++)
-	{
-		target_ntpl->Branch(target_var_names[u].c_str(), &f);	//Overload 10 of 13 of TTree::Branch()
-	}
-
-	target_file->cd();
-	target_ntpl->Write();
-	target_file->Write();
-	target_file->Close();
-
-	return 0;
-}
-
-int TFileParser::UpdateTarget()
-{
-	if(CheckTarget(true))return 1;
-
 	if(source_tree_names.size() == 0)
 	{
-		std::cout << "No source trees have been added" << std::endl;
-
-		return 1;
+		output_str << "No source trees have been added" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	if(Init(w))
+	{
+		return_val = 1;
+		goto label;
 	}
 
-	Init(true);
-
-	TFile* target_file = TFile::Open(target_file_name.c_str(), "UPDATE");
-	if(!target_file)return 1;	//this guard should be unnecessary since we've checked the target
+	target_file = TFile::Open(target_file_name.c_str(), "UPDATE");
+	if(!target_file)
+	{
+		//Warnings for this guard would've been caught by a preceding guard (CheckTarget)
+		//No appending to the output stream
+		return_val = 1;
+		goto label;
+	}
 	TTree* target_ntpl = (TTree*)target_file->Get(target_ntpl_name.c_str());
-	if(!target_ntpl)return 1;	//this guard should be unnecessary since we've checked the target
+	if(!target_ntpl)
+	{
+		//Warnings for this guard would've been caught by a preceding guard (CheckTarget)
+		//No appending to the output stream
+		return_val = 1;
+		goto label;
+	}
 	target_ntpl->SetDirectory(target_file);
-
-	int i;			//to store the success of UpdateNtuple
-	bool b = false;		//if at least 1 successful call of UpdateNtuple occurred
 
 	if(source_file_name == "" and source_list_name == "")
 	{
-		std::cout << "Member 'source_file_name' not set" << std::endl;
-		std::cout << "Member 'source_list_name' not set" << std::endl;
-
-		target_file->cd();
-		target_ntpl->Write();
-		target_file->Write();
-		target_file->Close();
-		return 1;
+		output_str << "Member 'source_file_name' not set" << std::endl;
+		output_str << "Member 'source_list_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
 	}
 
 	if(source_file_name != "")
 	{
-		i = UpdateNtuple(target_ntpl, source_file_name, (max_warnings != 0));
-		if(i == 0)b = true;
+		//If there are no errors (UpdateNtuple returns 0), store that at least one successful write occured (return_val = 0)
+		if(!UpdateNtuple(target_ntpl, source_file_name, w and (max_warnings != 0)))return_val = 0;
 	}
-
 	if(source_list_name != "")
 	{
-		int warnings = 0;
-		int index = -1;
-		std::string current_file_name = "";
-
 		std::ifstream source_list(source_list_name.c_str(), std::ios_base::in);
 		if(!source_list.is_open())
 		{
-			std::cout << "Could not get list:" << std::endl;
-			std::cout << "\t" << source_list_name << std::endl;
-
-			target_file->cd();
-			target_ntpl->Write();
-			target_file->Write();
-			target_file->Close();
-			if(b)return 0;
-			return 1;
+			output_str << "Could not get list:" << std::endl;
+			output_str << "\t" << source_list_name << std::endl;
+			return_val = 1;
+			goto label;
 		}
 
 		while(true)
@@ -578,25 +546,86 @@ int TFileParser::UpdateTarget()
 
 			if(index < starting_index)continue;
 			if(starting_index < stopping_index and index >= stopping_index)break;
-
 			if(source_list.bad())break;
-
 			source_list >> current_file_name;
-
 			if(source_list.eof())break;
+			if(current_file_name == "")continue;
 
-			i = UpdateNtuple(target_ntpl, current_file_name, (warnings < max_warnings or max_warnings < 0));
-			if(i == 0)b = true;
-			warnings += i;
+			//If there are no errors (UpdateNtuple returns 0), store that at least one successful write occured (return_val = 0)
+			if(!UpdateNtuple(target_ntpl, current_file_name, w and (max_warnings < 0 or warnings < max_warnings)))return_val = 0;
+			else warnings ++;
 		}
 
 		source_list.close();
 	}
 
-	target_file->cd();
-	target_ntpl->Write();
-	target_file->Write();
-	target_file->Close();
-	if(b)return 0;
-	return 1;
+	label:
+	if(target_file)
+	{
+		target_file->cd();
+		if(target_ntpl)target_ntpl->Write();
+		target_file->Write();
+		target_file->Close();
+	}
+	output_str << std::ends;
+	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
+}
+
+int TFileParser::RecreateTarget(bool w)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+
+	uint u = 0;
+	float f = 0.0;
+	TFile* target_file = (TFile*)nullptr;
+	TNtuple* target_ntpl = (TNtuple*)nullptr;
+
+	if(target_file_name == "")
+	{
+		output_str << "Member 'target_file_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	target_file = TFile::Open(target_file_name.c_str(), "RECREATE");
+	if(target_file->IsZombie())
+	{
+		output_str << "File:" << std::endl;
+		output_str << "\t" << target_file_name << std::endl;
+		output_str << "Is zombie" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	if(target_ntpl_name == "")
+	{
+		output_str << "Member 'target_ntpl_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	if(target_var_names.size() == 0)
+	{
+		output_str << "No target vars have been added" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	target_ntpl = new TNtuple(target_ntpl_name.c_str(), target_ntpl_name.c_str(), "");
+	target_ntpl->SetDirectory(target_file);
+	for(u = 0; u < target_var_names.size(); u++)
+	{
+		target_ntpl->Branch(target_var_names[u].c_str(), &f);
+	}
+
+	label:
+	if(target_file)
+	{
+		target_file->cd();
+		if(target_ntpl)target_ntpl->Write();
+		target_file->Write();
+		target_file->Close();
+	}
+	output_str << std::ends;
+	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
 }

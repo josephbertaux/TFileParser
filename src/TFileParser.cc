@@ -31,91 +31,72 @@ void TFileParser::FreeVoidAddress(std::string type, void* ptr)
 	if(type == "d" or type == "double")FreeVoidAddressTemplate<double>(ptr);
 }
 
-int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, bool v)
+int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, bool w)
 {
-	if(!target_tree)return 1;
-
-	if(reader_file_name == "")
-	{
-		if(v)
-		{
-			std::cout << std::endl;
-			std::cout << "Argument 'reader_file_name' not set" << std::endl;
-		}
-
-		return 1;
-	}
-	TFile* reader_file = TFile::Open(reader_file_name.c_str(), "READ");
-	if(!reader_file)
-	{
-		if(v)
-		{
-			std::cout << std::endl;
-			std::cout << "Could not get file:" << std::endl;
-			std::cout << "\t" << reader_file_name << std::endl;
-		}
-
-		return 1;
-	}
-	if(reader_file->IsZombie())
-	{
-		if(v)
-		{
-			std::cout << std::endl;
-			std::cout << "File:" << std::endl;
-			std::cout << "\t" << reader_file_name << std::endl;
-			std::cout << "Is zombie" << std::endl;
-		}
-
-		reader_file->Close();
-		return 1;
-	}
+	int return_val = 0;
+	std::stringstream output_str;
 
 	bool b = false;
 	uint u = 0;
 	int size = 1;
 	int s = 0;
-	if(v)
+	void* ptrs[source_var_names.size()] = {(void*)nullptr};
+	float vals[target_var_names.size()] = {0.0};
+	long long n;
+	long long N;
+	TFile* reader_file = (TFile*)nullptr;
+	TTree* reader_tree = (TTree*)nullptr;
+	TTree* friend_tree = (TTree*)nullptr;
+
+	if(!target_tree)
 	{
-		std::cout << std::endl;
-		std::cout << "In file:" << std::endl;
-		std::cout << reader_file_name << std::endl;
+		return_val = 1;
+		goto label;
 	}
 
-	TTree* reader_tree = (TTree*)reader_file->Get(source_tree_names[0].c_str());
-	if(v)
+	if(reader_file_name == "")
 	{
-		if(!reader_tree)
-		{
-			std::cout << "\tCould not get tree:" << std::endl;
-			std::cout << "\t\t" << source_tree_names[0] << std::endl;
-		}
-		if(reader_tree)
-		{
-			std::cout << "\tAdded friend:" << std::endl;
-			std::cout << "\t\t" << source_tree_names[0] << std::endl;
-		}
+		output_str << std::endl;
+		output_str << "Argument 'reader_file_name' not set" << std::endl;
+		return_val = 1;
+		goto label;
 	}
-	TTree* friend_tree = (TTree*)nullptr;
-	for(u = 1; u < source_tree_names.size(); u++)
+	reader_file = TFile::Open(reader_file_name.c_str(), "READ");
+	if(!reader_file)
+	{
+		output_str << std::endl;
+		output_str << "Could not get file:" << std::endl;
+		output_str << "\t" << reader_file_name << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	if(reader_file->IsZombie())
+	{
+		output_str << std::endl;
+		output_str << "File:" << std::endl;
+		output_str << "\t" << reader_file_name << std::endl;
+		output_str << "Is zombie" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	output_str << std::endl;
+	output_str << "In file:" << std::endl;
+	output_str << "\t" << reader_file_name << std::endl;
+
+	for(u = 0; u < source_tree_names.size(); u++)
 	{
 		friend_tree = (TTree*)reader_file->Get(source_tree_names[u].c_str());
-		if(friend_tree and reader_tree)reader_tree->AddFriend(friend_tree);
-		if(friend_tree and !reader_tree)reader_tree = friend_tree;
-		if(v)
+		if(friend_tree)
 		{
-			if(!friend_tree)
-			{
-				std::cout << "\tCould not get tree:" << std::endl;
-				std::cout << "\t\t" << source_tree_names[u] << std::endl;
-			}
-			if(friend_tree)
-			{
-				std::cout << "\tAdded friend:" << std::endl;
-				std::cout << "\t\t" << source_tree_names[u] << std::endl;
-			}
+			if(reader_tree)reader_tree->AddFriend(friend_tree);
+			else reader_tree = friend_tree;
 		}
-
+		else
+		{
+			output_str << "\tCould not get tree:" << std::endl;
+			output_str << "\t\t" << source_tree_names[u] << std::endl;
+		}
 	}
 
 	reader_tree->ResetBranchAddresses();
@@ -123,12 +104,9 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	{
 		if(!reader_tree->GetBranch(source_var_sizes.c_str()))
 		{
-			if(v)
-			{
-				std::cout << "\tCould not get source var sizes branch:" << std::endl;
-				std::cout << "\t\t" << source_var_sizes << std::endl;
-			}
-			b = true;
+			output_str << "\tCould not get source var sizes branch:" << std::endl;
+			output_str << "\t\t" << source_var_sizes << std::endl;
+			return_val = 1;
 		}
 		else
 		{
@@ -136,47 +114,37 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 			reader_tree->SetBranchAddress(source_var_sizes.c_str(), &size);
 		}
 	}
-	void* ptrs[source_var_names.size()] = {nullptr};
 	for(u = 0; u < source_var_names.size(); u++)
 	{
 		if(!reader_tree->GetBranch(source_var_names[u].c_str()))
 		{
-			if(v)
-			{
-				std::cout << "\tCould not get source branch:" << std::endl;
-				std::cout << "\t\t" << source_var_names[u] << std::endl;
-			}
-			b = true;
-			continue;
+			output_str << "\tCould not get source branch:" << std::endl;
+			output_str << "\t\t" << source_var_names[u] << std::endl;
+			return_val = 1;
 		}
-		ptrs[u] = MakeVoidAddress(source_var_types[u], reader_tree, source_var_names[u]);
+		else
+		{
+			ptrs[u] = MakeVoidAddress(source_var_types[u], reader_tree, source_var_names[u]);
+		}
 	}
 
 	target_tree->ResetBranchAddresses();
-	float vals[target_var_names.size()] = {0.0};
 	for(u = 0; u < target_var_names.size(); u++)
 	{
-		if(!target_tree->GetBranch(target_var_names[u].c_str()))	//This guard should be unnecessary since we've checked the target
+		if(!target_tree->GetBranch(target_var_names[u].c_str()))
 		{
-			if(v)
-			{
-				std::cout << "\tCould not get target branch:" << std::endl;
-				std::cout << "\t\t" << source_var_names[u] << std::endl;
-			}
-			b = true;
-			continue;
+			//Warnings for this guard would've been caught by a preceding guard (CheckTarget)
+			//No appending to the output stream
+			return_val = 1;
 		}
-		target_tree->SetBranchStatus(target_var_names[u].c_str(), 1);
-		target_tree->SetBranchAddress(target_var_names[u].c_str(), &(vals[u]));
+		else
+		{
+			target_tree->SetBranchStatus(target_var_names[u].c_str(), 1);
+			target_tree->SetBranchAddress(target_var_names[u].c_str(), &(vals[u]));
+		}
 	}
-	if(b)
-	{
-		reader_file->Close();
-		return 1;
-	}
+	if(return_val)goto label;
 
-	long long n;
-	long long N;
 	N = reader_tree->GetEntriesFast();
 	for(n = 0; n < N; n++)
 	{
@@ -218,15 +186,14 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 	}
 
-	reader_tree->ResetBranchAddresses();
-	target_tree->ResetBranchAddresses();
-	reader_file->Close();
-
-	for(u = 0; u < source_var_names.size(); u++)
-	{
-		FreeVoidAddress(source_var_types[u], ptrs[u]);
-	}
-	return 0;
+	label:
+	if(reader_tree)reader_tree->ResetBranchAddresses();
+	if(target_tree)target_tree->ResetBranchAddresses();
+	if(reader_file)reader_file->Close();
+	for(u = 0; u < source_var_names.size(); u++)FreeVoidAddress(source_var_types[u], ptrs[u]);
+	output_str << std::ends;
+	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
 }
 
 //public member functions
@@ -405,7 +372,6 @@ int TFileParser::CheckTarget(bool w)
 	int return_val = 0;
 	std::stringstream output_str;
 
-	bool b = false;
 	uint u = 0;
 	TFile* target_file = (TFile*)nullptr;
 	TNtuple* target_ntpl = (TNtuple*)nullptr;
@@ -454,14 +420,12 @@ int TFileParser::CheckTarget(bool w)
 		{
 			output_str << "\tCould not get target branch:" << std::endl;
 			output_str << "\t\t" << source_var_names[u] << std::endl;
-			b = true;
+			return_val = 1;
 		}
 	}
-	if(b)
-	{
-		return_val = 1;
-		goto label;
-	}
+	if(return_val)goto label;
+	//superfluous but I'm doing this on principle
+	//Any code between this and label should be skipped
 
 	label:
 	if(target_file)target_file->Close();
@@ -479,7 +443,7 @@ int TFileParser::UpdateTarget(bool w)
 	int index = -1;
 	std::string current_file_name = "";
 	TFile* target_file = (TFile*)nullptr;
-	TNtuple* target_ntpl = (TNtuple*)nullptr;
+	TTree* target_ntpl = (TTree*)nullptr;
 
 	if(CheckTarget(w))
 	{
@@ -506,7 +470,7 @@ int TFileParser::UpdateTarget(bool w)
 		return_val = 1;
 		goto label;
 	}
-	TTree* target_ntpl = (TTree*)target_file->Get(target_ntpl_name.c_str());
+	target_ntpl = (TTree*)target_file->Get(target_ntpl_name.c_str());
 	if(!target_ntpl)
 	{
 		//Warnings for this guard would've been caught by a preceding guard (CheckTarget)

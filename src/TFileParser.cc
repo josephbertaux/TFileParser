@@ -442,14 +442,18 @@ int TFileParser::UpdateTarget(bool w)
 
 		while(true)
 		{
+			if(source_list.bad())break;
+
 			index++;
+			source_list >> current_file_name;
 
 			if(index < starting_index)continue;
 			if(starting_index < stopping_index and index >= stopping_index)break;
-			if(source_list.bad())break;
-			source_list >> current_file_name;
 			if(source_list.eof())break;
 			if(current_file_name == "")continue;
+
+			//std::cout << current_file_name << std::endl;
+			//std::cout << "\t(index: " << index << "\tstarting: " << starting_index << "\tstopping: " << stopping_index << ")" << std::endl;
 
 			//If there are no errors (UpdateNtuple returns 0), store that at least one successful write occured (return_val = 0)
 			if(!UpdateNtuple(target_ntpl, current_file_name, w and (max_warnings < 0 or warnings < max_warnings)))return_val = 0;

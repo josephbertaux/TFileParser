@@ -17,14 +17,12 @@ int main(int argc, char* argv[])
 	if(tfpw.ShowHelp(args))return 0;
 	if(tfpw.Config(args[0], true))return 0;
 
-	//move these to a TFPWrapper::CommandConfig(std::vector<std::string>) method potentially
+	//could move this block to a TFPWrapper::CommandConfig(std::vector<std::string>) method potentially
 	int return_val = 0;
 	if(args.size() != 1 and args.size() != 2 and args.size() != 3 and args.size() != 5)
 	{
 		std::cout << "\tNumber of command line args (" << args.size() << ") not recognized for overloaded methods" << std::endl;
 		return_val = 1;
-		//goto label
-		
 	}
 	if(args.size() == 2)
 	{
@@ -66,5 +64,8 @@ int main(int argc, char* argv[])
 	std::cout << tfpw.tfp.GetMaxSize() << std::endl;
 	std::cout << "Done" << std::endl;
 
+	if(tfpw.tfp.RecreateTarget())return 0;
+	if(tfpw.tfp.UpdateTarget())return 0;
+	
 	return 0;
 }

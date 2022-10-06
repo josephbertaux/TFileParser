@@ -1,0 +1,19 @@
+//configure reading parameters
+SetTargetNtpl{target_ntpl}
+
+AddSourceTree{source_tree}
+AddSourceTree{source_frnd}
+
+SetMaxSize{3000}
+
+//configure data
+AddSourceVar{a}
+AddSourceVar{b; i}
+AddSourceVar{c; d}
+
+AddSourceCut{a > 3}
+
+AddTargetVar{a}
+AddTargetVar{d; b + c}
+
+AddTargetCut{d > -999}

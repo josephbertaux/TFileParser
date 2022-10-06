@@ -198,75 +198,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 
 //public member functions
 
-TFileParser::TFileParser()
-{
-	Clear();
-
-	target_file_name = "";
-	target_ntpl_name = "";
-
-	source_file_name = "";
-	source_list_name = "";
-	starting_index = 0;
-	stopping_index = -1;
-
-	max_warnings = -1;
-	max_size = 1;
-}
-
-void TFileParser::AddSourceTree(std::string name)
-{
-	if(name == "")return;
-
-	source_tree_names.push_back(name);
-}
-
-void TFileParser::AddSourceVar(std::string name, std::string type)
-{
-	if(name == "")return;
-	if(type == "")type = "F";
-
-	for(uint u = 0; u < source_var_names.size(); u++)
-	{
-		if(source_var_names[u] == name)return;
-	}
-
-	source_var_names.push_back(name);
-	source_var_types.push_back(type);
-}
-
-void TFileParser::AddSourceCut(std::string name, std::string expr)
-{
-	if(expr == "")return;
-	if(name == "")name = "SourceCut" + std::to_string(source_cut_exprs.size());
-
-	source_cut_names.push_back(name);
-	source_cut_exprs.push_back(expr);
-}
-
-void TFileParser::AddTargetVar(std::string name, std::string expr)
-{
-	if(name == "")return;
-	if(expr == "")expr = name;
-
-	for(uint u = 0; u < target_var_names.size(); u++)
-	{
-		if(target_var_names[u] == name)return;
-	}
-
-	target_var_names.push_back(name);
-	target_var_exprs.push_back(expr);
-}
-
-void TFileParser::AddTargetCut(std::string name, std::string expr)
-{
-	if(expr == "")return;
-	if(name == "")name = "TargetCut" + std::to_string(target_cut_exprs.size());
-
-	target_cut_names.push_back(name);
-	target_cut_exprs.push_back(expr);
-}
-
 void TFileParser::ClearSourceTrees()
 {
 	source_tree_names.clear();
@@ -317,6 +248,11 @@ void TFileParser::Clear()
 	ClearSourceCuts();
 	ClearTargetVars();
 	ClearTargetCuts();
+}
+
+TFileParser::TFileParser()
+{
+	Clear();
 }
 
 int TFileParser::Init(bool w)
@@ -591,5 +527,222 @@ int TFileParser::RecreateTarget(bool w)
 	}
 	output_str << std::ends;
 	if(w and return_val)std::cout << output_str.str() << std::endl;
+	return return_val;
+}
+
+//member accessor functions
+
+//Implementations for Set...(...)
+int TFileParser::SetTargetFile(std::string name)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "SetTargetFile(std::string name):" << std::endl;
+	
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl; 
+		return_val = 1;
+	}
+	
+	target_file_name = name;
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::SetTargetNtpl(std::string name)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "SetTargetNtpl(std::string name):" << std::endl;
+	
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl; 
+		return_val = 1;
+	}
+	
+	target_ntpl_name = name;
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::SetMaxSize(int size)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "SetMaxSize(int size):" << std::endl;
+	
+	if(size < 1)
+	{
+		output_str << "\tArg 'size' < 1" << std::endl; 
+		return_val = 1;
+	}
+	
+	max_size = size;
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+//Implementations for Add...(...)
+int TFileParser::AddSourceTree(std::string name)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddSourceTree(std::string name):" << std::endl;
+
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	source_tree_names.push_back(name);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::AddSourceVar(std::string name, std::string type)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddSourceVar(std::string name, std::string type):" << std::endl;
+
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	if(type == "")type = "F";
+
+	for(uint u = 0; u < source_var_names.size(); u++)
+	{
+		if(source_var_names[u] == name)
+		{
+			output_str << "\tArg '" << name << "' has already been added" << std::endl;
+			return_val = 1;
+			goto label;
+		}
+	}
+
+	source_var_names.push_back(name);
+	source_var_types.push_back(type);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::AddSourceCut(std::string name, std::string expr)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddSourceCut(std::string name, std::string expr):" << std::endl;
+
+	if(name == "")name = "SourceCut" + std::to_string(source_cut_exprs.size());
+	if(expr == "")
+	{
+		output_str << "\tArg 'expr' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	for(uint u = 0; u < source_cut_names.size(); u++)
+	{
+		if(source_cut_names[u] == name)
+		{
+			output_str << "\tArg '" << name << "' has already been added" << std::endl;
+			return_val = 1;
+			goto label;
+		}
+	}
+
+	source_cut_names.push_back(name);
+	source_cut_exprs.push_back(expr);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::AddTargetVar(std::string name, std::string expr)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddTargetVar(std::string name, std::string type):" << std::endl;
+
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+	if(expr == "")expr = name;
+
+	for(uint u = 0; u < target_var_names.size(); u++)
+	{
+		if(target_var_names[u] == name)
+		{
+			output_str << "\tArg '" << name << "' has already been added" << std::endl;
+			return_val = 1;
+			goto label;
+		}
+	}
+
+	target_var_names.push_back(name);
+	target_var_exprs.push_back(expr);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFileParser::AddTargetCut(std::string name, std::string expr)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddTargetCut(std::string name, std::string expr):" << std::endl;
+
+	if(name == "")name = "TargetCut" + std::to_string(target_cut_exprs.size());
+	if(expr == "")
+	{
+		output_str << "\tArg 'expr' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	for(uint u = 0; u < target_cut_names.size(); u++)
+	{
+		if(target_cut_names[u] == name)
+		{
+			output_str << "\tArg '" << name << "' has already been added" << std::endl;
+			return_val = 1;
+			goto label;
+		}
+	}
+
+	target_cut_names.push_back(name);
+	target_cut_exprs.push_back(expr);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
 	return return_val;
 }

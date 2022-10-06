@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -19,7 +20,21 @@
 class TFileParser
 {
 protected:
-        std::vector<std::string> source_tree_names = {};	//The names of the TTrees in each source file to be retrieved
+	std::string target_file_name = "";			//The fullpath name of the target file to recreate or update
+	std::string target_ntpl_name = "";			//The name of the ntpl in that target file to recreate or update
+
+	std::string source_file_name = "";			//The fullpath name of source files used to read in data
+	std::string source_list_name = "";			//Or, the fullpath name of the list file containing the fullpath names of other source files
+
+	std::string source_var_sizes = "";			//If the TTrees in the source file contain arrays of integral types, this is the branch that specifies the multiplicity 
+	int max_size = 1;					//the highest possible multiplicity--if this isn't large enough, the program will segfault
+
+	int starting_index = 0;					//the inclusive starting index for the list of source files
+	int stopping_index = -1;				//the exclusive stopping index for the list of source files (reads to the end if less than starting_index)
+
+	int max_warnings = -1;					//the most warnings to output while Updating or Recreating the target (will always output warnings if negative)
+
+	std::vector<std::string> source_tree_names = {};	//The names of the TTrees in each source file to be retrieved
 
 	std::vector<std::string> source_var_names = {};		//The branches to retrieve in source files
 	std::vector<std::string> source_var_types = {};		//The corresponding type (int, float, double)
@@ -74,27 +89,6 @@ protected:
 
 	int UpdateNtuple(TTree*, std::string, bool);
 public:
-	std::string target_file_name = "";			//The fullpath name of the target file to recreate or update
-	std::string target_ntpl_name = "";			//The name of the ntpl in that target file to recreate or update
-
-	std::string source_file_name = "";			//The fullpath name of source files used to read in data
-	std::string source_list_name = "";			//Or, the fullpath name of the list file containing the fullpath names of other source files
-	int starting_index = 0;					//the inclusive starting index for the list of source files
-	int stopping_index = -1;				//the exclusive stopping index for the list of source files (reads to the end if less than starting_index)
-
-	int max_warnings = -1;		//the most warnings to output while Updating or Recreating the target (will always output warnings if negative)
-
-	std::string source_var_sizes = "";	//If the TTrees in the source file contain arrays of integral types, this is the branch that specifies the multiplicity 
-	int max_size = 1;			//the highest possible multiplicity--if this isn't large enough, the program will segfault
-
-	TFileParser();
-
-	void AddSourceTree(std::string);
-	void AddSourceVar(std::string, std::string);
-	void AddSourceCut(std::string, std::string);
-	void AddTargetVar(std::string, std::string);
-	void AddTargetCut(std::string, std::string);
-
 	void ClearSourceTrees();
 	void ClearSourceVars();
 	void ClearSourceCuts();
@@ -108,17 +102,46 @@ public:
 	int UpdateTarget(bool);		//Updates the target only if it exists
 	int RecreateTarget(bool);	//Recreates the target file with an empty target ntuple with the correct branches
 
+	TFileParser();
 
-	//overloads
-	void AddSourceVar(std::string s){AddSourceVar(s, "");}
-	void AddSourceCut(std::string s){AddSourceVar("", s);}
-	void AddTargetVar(std::string s){AddTargetVar(s, s);}
-	void AddTargetCut(std::string s){AddTargetCut("", s);}
+ 	int SetTargetFile(std::string);
+	int SetTargetNtpl(std::string);
+	int SetSourceName(std::string s){source_file_name = s;return 0;}
+	int SetSourceList(std::string s){source_list_name = s;return 0;}
+	int SetSizeVar(std::string s){source_var_sizes = s;return 0;}
+
+	int SetMaxSize(int);
+	int SetStartingIndex(int i){starting_index = i;return 0;}
+	int SetStoppingIndex(int i){stopping_index = i;return 0;}
+	int SetMaxWarnings(int i){max_warnings = i;return 0;}
+
+	std::string GetTargetFile(){return target_file_name;}
+	std::string GetTargetNtpl(){return target_ntpl_name;}
+	std::string GetSourceName(){return source_file_name;}
+	std::string GetSourceList(){return source_list_name;}
+	std::string GetSizeVar(){return source_var_sizes;}
+
+	int GetMaxSize(){return max_size;}
+	int GetStartingIndex(){return starting_index;}
+	int GetStoppingIndex(){return stopping_index;}
+	int GetMaxWarnings(){return max_warnings;}
+
+	int AddSourceTree(std::string);
+	int AddSourceVar(std::string, std::string);
+	int AddSourceCut(std::string, std::string);
+	int AddTargetVar(std::string, std::string);
+	int AddTargetCut(std::string, std::string);
 
 	int Init(){return Init(true);}
 	int CheckTarget(){return CheckTarget(true);}
 	int UpdateTarget(){return UpdateTarget(true);}
 	int RecreateTarget(){return RecreateTarget(true);}
+
+	//overloads
+	int AddSourceVar(std::string s){return AddSourceVar(s, "");}
+	int AddSourceCut(std::string s){return AddSourceCut("", s);}
+	int AddTargetVar(std::string s){return AddTargetVar(s, s);}
+	int AddTargetCut(std::string s){return AddTargetCut("", s);}
 };
 
 #endif

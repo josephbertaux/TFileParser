@@ -728,7 +728,7 @@ int TFPWrapper::AddSourceTree(std::vector<std::string> args)
 	}
 
 	//could make this a loop, or the original function take a vector
-	return_val = tfp.AddSourceVar(args[0]);
+	return_val = tfp.AddSourceTree(args[0]);
 
 	label:
 	output_str << std::ends;

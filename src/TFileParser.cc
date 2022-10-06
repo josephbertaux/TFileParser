@@ -489,6 +489,13 @@ int TFileParser::RecreateTarget(bool w)
 		goto label;
 	}
 	target_file = TFile::Open(target_file_name.c_str(), "RECREATE");
+	if(!target_file)
+	{
+		output_str << "Failed to recreate file:" << std::endl;
+		output_str << "\t" << target_file_name << std::endl;
+		return_val = 1;
+		goto label;
+	}
 	if(target_file->IsZombie())
 	{
 		output_str << "File:" << std::endl;
@@ -511,6 +518,13 @@ int TFileParser::RecreateTarget(bool w)
 		goto label;
 	}
 	target_ntpl = new TNtuple(target_ntpl_name.c_str(), target_ntpl_name.c_str(), "");
+	if(!target_ntpl)
+	{
+		output_str << "Failed to recreate ntuple:" << std::endl;
+		output_str << "\t" << target_ntpl_name << std::endl;
+		return_val = 1;
+		goto label;
+	}
 	target_ntpl->SetDirectory(target_file);
 	for(u = 0; u < target_var_names.size(); u++)
 	{

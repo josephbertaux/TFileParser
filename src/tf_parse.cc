@@ -56,13 +56,6 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	//...
-	
-	//Check on tfpw.tfp's members...
-	std::cout << "Member values:" << std::endl;
-	std::cout << tfpw.tfp.GetTargetFile() << std::endl;
-	std::cout << tfpw.tfp.GetTargetNtpl() << std::endl;
-	std::cout << tfpw.tfp.GetMaxSize() << std::endl;
-	std::cout << "Done" << std::endl;
 
 	if(tfpw.tfp.RecreateTarget())return 0;
 	if(tfpw.tfp.UpdateTarget())return 0;

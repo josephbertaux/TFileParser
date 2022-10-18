@@ -44,14 +44,13 @@ public:
 	int SetTargetNtpl(std::vector<std::string>);
 	int SetSourceName(std::vector<std::string>);
 	int SetSourceList(std::vector<std::string>);
-	int SetSizeVar(std::vector<std::string>);
 
-	int SetMaxSize(std::vector<std::string>);
 	int SetStartingIndex(std::vector<std::string>);
 	int SetStoppingIndex(std::vector<std::string>);
 	int SetMaxWarnings(std::vector<std::string>);
 
 	int AddSourceTree(std::vector<std::string>);
+	int AddSizeVar(std::vector<std::string>);
 	int AddSourceVar(std::vector<std::string>);
 	int AddSourceCut(std::vector<std::string>);
 	int AddTargetVar(std::vector<std::string>);

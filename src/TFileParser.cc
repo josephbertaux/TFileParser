@@ -2,13 +2,13 @@
 
 //private member functions
 
-void* TFileParser::MakeVoidAddress(std::string type, TTree* tree, std::string branch)
+void* TFileParser::MakeVoidAddress(std::string type, TTree* tree, std::string branch, int size)
 {
 	std::transform(type.begin(), type.end(), type.begin(), [](unsigned char c){return std::tolower(c);});
 
-	if(type == "i" or type == "int")return MakeVoidAddressTemplate<int>(tree, branch);
-	if(type == "f" or type == "float")return MakeVoidAddressTemplate<float>(tree, branch);
-	if(type == "d" or type == "double")return MakeVoidAddressTemplate<double>(tree, branch);
+	if(type == "i" or type == "int")return MakeVoidAddressTemplate<int>(tree, branch, size);
+	if(type == "f" or type == "float")return MakeVoidAddressTemplate<float>(tree, branch, size);
+	if(type == "d" or type == "double")return MakeVoidAddressTemplate<double>(tree, branch, size);
 
 	return (void*)nullptr;
 }
@@ -38,9 +38,12 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 
 	bool b = false;
 	uint u = 0;
+	uint v = 0;
 	int size = 1;
 	int s = 0;
-	void* ptrs[source_var_names.size()] = {(void*)nullptr};
+	int size_vars[source_size_vars.size()] = {0};
+	int max_sizes[source_size_vars.size()] = {0};
+	void* ptrs[source_var_names.size()] = {nullptr};
 	float vals[target_var_names.size()] = {0.0};
 	long long n;
 	long long N;
@@ -99,21 +102,35 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 	}
 
+	reader_tree->SetBranchStatus("*", 0);
 	reader_tree->ResetBranchAddresses();
-	if(source_var_sizes != "")
+
+	for(v = 0; v < source_size_vars.size(); v++)
 	{
-		if(!reader_tree->GetBranch(source_var_sizes.c_str()))
+		if(!reader_tree->GetBranch(source_size_vars[v].c_str()))
 		{
-			output_str << "\tCould not get source var sizes branch:" << std::endl;
-			output_str << "\t\t" << source_var_sizes << std::endl;
+			output_str << "\tCould not get size var branch:" << std::endl;
+			output_str << "\t\t" << source_size_vars[v] << std::endl;
 			return_val = 1;
 		}
 		else
 		{
-			reader_tree->SetBranchStatus(source_var_sizes.c_str(), 1);
-			reader_tree->SetBranchAddress(source_var_sizes.c_str(), &size);
+			size_vars[v] = 0;
+			reader_tree->SetBranchStatus(source_size_vars[v].c_str(), 1);
+			reader_tree->SetBranchAddress(source_size_vars[v].c_str(), &(size_vars[v]));
 		}
 	}
+
+	N = reader_tree->GetEntriesFast();
+	for(n = 0; n < N; n++)
+	{
+		reader_tree->GetEntry(n);
+		for(v = 0; v < source_size_vars.size(); v++)
+		{
+			if(size_vars[v] > max_sizes[v])max_sizes[v] = size_vars[v];
+		}
+	}
+
 	for(u = 0; u < source_var_names.size(); u++)
 	{
 		if(!reader_tree->GetBranch(source_var_names[u].c_str()))
@@ -124,9 +141,43 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 		else
 		{
-			ptrs[u] = MakeVoidAddress(source_var_types[u], reader_tree, source_var_names[u]);
+			try
+			{
+				ptrs[u] = MakeVoidAddress(source_var_types[u], reader_tree, source_var_names[u], std::stoi(source_var_sizes[u]));
+				if(ptrs[u] == nullptr)
+				{
+					output_str << "\tFailed to allocate size:" << std::endl;
+					output_str << "\t\t" << source_var_sizes[u] << std::endl;
+					output_str << "\tFor source var:" << std::endl;
+					output_str << "\t\t" << source_var_names[u] << std::endl;
+					return_val = 1;
+				}
+			}
+			catch(const std::invalid_argument&)
+			{
+				b = true;
+				for(v = 0; v < source_size_vars.size(); v++)
+				{
+					if(source_size_vars[v] == source_var_sizes[u])
+					{
+						ptrs[u] = MakeVoidAddress(source_var_types[u], reader_tree, source_var_names[u], max_sizes[v]);
+						b = false;
+						break;
+					}
+				}
+				if(b)
+				{
+					output_str << "\tSource branch:" << std::endl;
+					output_str << "\t\t" << source_var_names[u] << std::endl;
+					output_str << "\tHas size specified as non-numeric value:" << std::endl;
+					output_str << "\t\t" << source_var_sizes[u] << std::endl;
+					output_str << "\tHowever, no variable of the same name found among source_size_vars" << std::endl;
+					return_val = 1;
+				}
+			}
 		}
 	}
+	if(return_val)goto label;
 
 	target_tree->ResetBranchAddresses();
 	for(u = 0; u < target_var_names.size(); u++)
@@ -149,40 +200,48 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	for(n = 0; n < N; n++)
 	{
 		reader_tree->GetEntry(n);
-
-		for(s = 0; s < size; s++)
+		for(u = 0; u < source_args.getSize(); u++)
 		{
-			for(u = 0; u < source_args.getSize(); u++)
-			{
-				((RooRealVar*)&(source_args[u]))->setVal(ReadVoidAddress(source_var_types[u], ptrs[u], s));
-			}
+			((RooRealVar*)&(source_args[u]))->setVal(ReadVoidAddress(source_var_types[u], ptrs[u], 0));
+		}
 
-			b = false;
-			for(u = 0; u < source_cuts.getSize(); u++)
+		for(v = 0; v < source_size_vars.size(); v++)
+		{
+			for(s = 0; s < size_vars[v]; s++)
 			{
-				if(((RooFormulaVar*)&(source_cuts[u]))->getValV() == 0.0)
+				for(u = 0; u < source_args.getSize(); u++)
 				{
-					b = true;
-					break;
+					if(source_var_sizes[u] != source_size_vars[v])continue;
+					((RooRealVar*)&(source_args[u]))->setVal(ReadVoidAddress(source_var_types[u], ptrs[u], s));
 				}
-			}
-			if(b)continue;
-			for(u = 0; u < target_cuts.getSize(); u++)
-			{
-				if(((RooFormulaVar*)&(target_cuts[u]))->getValV() == 0.0)
+
+				b = false;
+				for(u = 0; u < source_cuts.getSize(); u++)
 				{
-					b = true;
-					break;
+					if(((RooFormulaVar*)&(source_cuts[u]))->getValV() == 0.0)
+					{
+						b = true;
+						break;
+					}
 				}
-			}
-			if(b)continue;
+				if(b)continue;
+				for(u = 0; u < target_cuts.getSize(); u++)
+				{
+					if(((RooFormulaVar*)&(target_cuts[u]))->getValV() == 0.0)
+					{
+						b = true;
+						break;
+					}
+				}
+				if(b)continue;
 
-			for(u = 0; u < target_args.getSize(); u++)
-			{
-				vals[u] = ((RooFormulaVar*)&(target_args[u]))->getValV();
-			}
+				for(u = 0; u < target_args.getSize(); u++)
+				{
+					vals[u] = ((RooFormulaVar*)&(target_args[u]))->getValV();
+				}
 
-			target_tree->Fill();
+				target_tree->Fill();
+			}
 		}
 	}
 
@@ -241,8 +300,7 @@ void TFileParser::Clear()
 
 	max_warnings = -1;
 
-	source_var_sizes = "";
-	max_size = 1;
+	source_var_sizes.clear();
 
 	ClearSourceVars();
 	ClearSourceCuts();
@@ -591,26 +649,6 @@ int TFileParser::SetTargetNtpl(std::string name)
 	return return_val;
 }
 
-int TFileParser::SetMaxSize(int size)
-{
-	int return_val = 0;
-	std::stringstream output_str;
-	output_str << "SetMaxSize(int size):" << std::endl;
-	
-	if(size < 1)
-	{
-		output_str << "\tArg 'size' < 1" << std::endl; 
-		return_val = 1;
-	}
-	
-	max_size = size;
-
-	label:
-	output_str << std::ends;
-	if(return_val)std::cout << output_str.str();
-	return return_val;
-}
-
 //Implementations for Add...(...)
 int TFileParser::AddSourceTree(std::string name)
 {
@@ -633,6 +671,38 @@ int TFileParser::AddSourceTree(std::string name)
 	return return_val;
 }
 
+int TFileParser::AddSizeVar(std::string name)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddSizeVar(std::string name):" << std::endl;
+
+	if(name == "")
+	{
+		output_str << "\tArg 'name' passed as \"\"" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	for(uint u = 0; u < source_size_vars.size(); u++)
+	{
+		if(source_size_vars[u] == name)
+		{
+			output_str << "\tArg '" << name << "' has already been added" << std::endl;
+			return_val = 1;
+			goto label;
+		}
+	}
+
+	source_size_vars.push_back(name);
+
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
 int TFileParser::AddSourceVar(std::string name, std::string type)
 {
 	int return_val = 0;
@@ -645,7 +715,7 @@ int TFileParser::AddSourceVar(std::string name, std::string type)
 		return_val = 1;
 		goto label;
 	}
-	if(type == "")type = "F";
+	if(type == "")type = "f";
 
 	for(uint u = 0; u < source_var_names.size(); u++)
 	{
@@ -658,7 +728,23 @@ int TFileParser::AddSourceVar(std::string name, std::string type)
 	}
 
 	source_var_names.push_back(name);
-	source_var_types.push_back(type);
+	source_var_types.push_back(type.substr(0, type.find("[")));
+
+	if(type.find("[") == std::string::npos or type.find("]") == std::string::npos)
+	{
+		type = "1";
+	}
+	else
+	{
+		type = type.substr(type.find("[") + 1);
+		type = type.substr(0, type.find("]"));
+	}
+	source_var_sizes.push_back(type);
+
+	std::cout << "Added source var:" << std::endl;
+	std::cout << "\tName: " << source_var_names.back() << std::endl;
+	std::cout << "\tType: " << source_var_types.back() << std::endl;
+	std::cout << "\tSize: " << source_var_sizes.back() << std::endl;
 
 	label:
 	output_str << std::ends;

@@ -28,12 +28,11 @@ void TFPWrapper::MakeTFPWMap()
 							"\t\tSetTargetNtpl\n" +
 							"\t\tSetSourceName\n" +
 							"\t\tSetSourceList\n" +
-							"\t\t*SetSizeVar\n" +
-							"\t\t*SetMaxSize\n" +
 							"\t\t*SetStartingIndex\n" +
 							"\t\t*SetStoppingIndex\n" +
 							"\t\t*SetMaxWarnings\n" +
 							"\t\tAddSourceTree\n" +
+							"\t\t*AddSizeVar\n" +
 							"\t\tAddSourceVar\n" +
 							"\t\t*AddSourceCut\n" +
 							"\t\tAddTargetVar\n" +
@@ -104,35 +103,6 @@ void TFPWrapper::MakeTFPWMap()
 							&TFPWrapper::SetSourceList
 						};
 
-	tfpw_map["SetSizeVar"] =		TFPW_TPL
-						{
-							s +
-							"Implements\n" +
-							"SetSizeVar(std::string)\n" +
-							"\tIn TTrees which have branches which are arrays of integrals types (i.e., T[])\n" +
-							"\tSets the name of the a singular branch of type int\n" +
-							"\twhich stores the sizes of the arrays of the other branches for each entry\n" +
-							"\tBy defaul, is \"\" (there is no size branch to look for)\n" +
-							"\tSee also: SetMaxSize\n" +
-							s,
-							this,
-							&TFPWrapper::SetSizeVar
-						};
-
-	tfpw_map["SetMaxSize"] =		TFPW_TPL
-						{
-							s +
-							"Implements\n" +
-							"SetSizeVar(std::string)\n" +
-							"\tIn TTrees which have branches which are arrays of integrals types (i.e., T[])\n" +
-							"\tSets the maximum size to allocated for the variables which will be their addresses for reading\n" +
-							"\tThe program WILL segfault if this not sufficiently large\n" +
-							"\tBy default, this is '1' (equivalent to if the branches are of types T, as opposed to T[]\n" +
-							"\tSee also: SetSizeVar\n" +
-							s,
-							this,
-							&TFPWrapper::SetMaxSize
-						};
 
 	tfpw_map["SetStartingIndex"] =		TFPW_TPL
 						{
@@ -191,6 +161,18 @@ void TFPWrapper::MakeTFPWMap()
 							s,
 							this,
 							&TFPWrapper::AddSourceTree
+						};
+
+	tfpw_map["AddSizeVar"] =		TFPW_TPL
+						{
+							s +
+							"Implements\n" +
+							"AddSizeVar(std::string)\n" +
+							"\tAdds the name of a branch to look for in source files\n" +
+							"\tWhich is of type int and could specify the sizes of other args\n" +
+							s,
+							this,
+							&TFPWrapper::AddSizeVar
 						};
 
 	tfpw_map["AddSourceVar"] =		TFPW_TPL
@@ -557,61 +539,6 @@ int TFPWrapper::SetSourceList(std::vector<std::string> args)
 	return return_val;
 }
 
-int TFPWrapper::SetSizeVar(std::vector<std::string> args)
-{
-	int return_val = 0;
-	std::stringstream output_str;
-	output_str << "SetSizeVar(std::vector<std::string> args):" << std::endl;
-
-	if(args.size() == 0)
-	{
-		output_str << "\tPassed argument 'args' is empty" << std::endl;
-		return_val = 1;
-		goto label;
-	}
-
-	return_val = tfp.SetSizeVar(args[0]);
-
-	label:
-	output_str << std::ends;
-	if(return_val)std::cout << output_str.str();
-	return return_val;
-}
-
-int TFPWrapper::SetMaxSize(std::vector<std::string> args)
-{
-	int return_val = 0;
-	std::stringstream output_str;
-	output_str << "SetMaxSize(std::vector<std::string> args):" << std::endl;
-
-	if(args.size() == 0)
-	{
-		output_str << "\tPassed argument 'args' is empty" << std::endl;
-		return_val = 1;
-		goto label;
-	}
-
-	if(args[0] == "")
-	{
-		output_str << "\tPassed argument args[0] is empty" << std::endl;
-	}
-	try
-	{
-		return_val = tfp.SetMaxSize(std::stoi(args[0]));
-	}
-	catch(const std::invalid_argument&)
-	{
-		output_str << "\tstd::stoi failed to deduce '" << args[0] << "' as int" << std::endl;
-		return_val = 1;
-		goto label;
-	}
-
-	label:
-	output_str << std::ends;
-	if(return_val)std::cout << output_str.str();
-	return return_val;
-}
-
 int TFPWrapper::SetStartingIndex(std::vector<std::string> args)
 {
 	int return_val = 0;
@@ -684,7 +611,7 @@ int TFPWrapper::SetMaxWarnings(std::vector<std::string> args)
 {
 	int return_val = 0;
 	std::stringstream output_str;
-	output_str << "SetTargetFile(std::vector<std::string> args):" << std::endl;
+	output_str << "SetMaxWarnings(std::vector<std::string> args):" << std::endl;
 
 	if(args.size() == 0)
 	{
@@ -729,6 +656,27 @@ int TFPWrapper::AddSourceTree(std::vector<std::string> args)
 
 	//could make this a loop, or the original function take a vector
 	return_val = tfp.AddSourceTree(args[0]);
+
+	label:
+	output_str << std::ends;
+	if(return_val)std::cout << output_str.str();
+	return return_val;
+}
+
+int TFPWrapper::AddSizeVar(std::vector<std::string> args)
+{
+	int return_val = 0;
+	std::stringstream output_str;
+	output_str << "AddSizeVar(std::vector<std::string> args):" << std::endl;
+
+	if(args.size() == 0)
+	{
+		output_str << "\tPassed argument 'args' is empty" << std::endl;
+		return_val = 1;
+		goto label;
+	}
+
+	return_val = tfp.AddSizeVar(args[0]);
 
 	label:
 	output_str << std::ends;

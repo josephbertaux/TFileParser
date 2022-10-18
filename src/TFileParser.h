@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #include <stdexcept>
 
 #include "TFile.h"
@@ -26,9 +27,6 @@ protected:
 	std::string source_file_name = "";			//The fullpath name of source files used to read in data
 	std::string source_list_name = "";			//Or, the fullpath name of the list file containing the fullpath names of other source files
 
-	std::string source_var_sizes = "";			//If the TTrees in the source file contain arrays of integral types, this is the branch that specifies the multiplicity 
-	int max_size = 1;					//the highest possible multiplicity--if this isn't large enough, the program will segfault
-
 	int starting_index = 0;					//the inclusive starting index for the list of source files
 	int stopping_index = -1;				//the exclusive stopping index for the list of source files (reads to the end if less than starting_index)
 
@@ -36,8 +34,11 @@ protected:
 
 	std::vector<std::string> source_tree_names = {};	//The names of the TTrees in each source file to be retrieved
 
+	std::vector<std::string> source_size_vars = {};		//Branches of type int which determine the size of other branches
+
 	std::vector<std::string> source_var_names = {};		//The branches to retrieve in source files
 	std::vector<std::string> source_var_types = {};		//The corresponding type (int, float, double)
+	std::vector<std::string> source_var_sizes = {};		//The number of instances of the current source var entry
 	RooArgList source_args;					//RooRealVars to represent them while reading
 	
 	std::vector<std::string> source_cut_names = {};		//Optional names of cuts to place on source data
@@ -53,9 +54,10 @@ protected:
 	RooArgList target_cuts;					//RooFormulaVars to evaluate the cuts
 
 	template <typename T>
-	void* MakeVoidAddressTemplate(TTree* t, std::string s)
+	void* MakeVoidAddressTemplate(TTree* t, std::string s, int size)
 	{
-		void* ptr = (void*)(new T[max_size]);
+		if(size < 1)size = 1;
+		void* ptr = (void*)(new T[size]);
 
 		if(!t)return ptr;
 		if(s == "")return ptr;
@@ -66,13 +68,13 @@ protected:
 
 		return ptr;
 	}
-	void* MakeVoidAddress(std::string, TTree*, std::string);
+	void* MakeVoidAddress(std::string, TTree*, std::string, int size);
 
 	template <typename T>
 	float ReadVoidAddressTemplate(void* ptr, int i)
 	{
 		if(!ptr)return 0.0;
-		if(!(0 <= i and i < max_size))return 0.0;
+		//if(!(0 <= i and i < size))return 0.0;
 
 		return ((T*)ptr)[i];
 	}
@@ -108,25 +110,16 @@ public:
 	int SetTargetNtpl(std::string);
 	int SetSourceName(std::string s){source_file_name = s;return 0;}
 	int SetSourceList(std::string s){source_list_name = s;return 0;}
-	int SetSizeVar(std::string s){source_var_sizes = s;return 0;}
 
-	int SetMaxSize(int);
 	int SetStartingIndex(int i){starting_index = i;return 0;}
 	int SetStoppingIndex(int i){stopping_index = i;return 0;}
 	int SetMaxWarnings(int i){max_warnings = i;return 0;}
 
-	std::string GetTargetFile(){return target_file_name;}
-	std::string GetTargetNtpl(){return target_ntpl_name;}
-	std::string GetSourceName(){return source_file_name;}
-	std::string GetSourceList(){return source_list_name;}
-	std::string GetSizeVar(){return source_var_sizes;}
-
-	int GetMaxSize(){return max_size;}
 	int GetStartingIndex(){return starting_index;}
 	int GetStoppingIndex(){return stopping_index;}
-	int GetMaxWarnings(){return max_warnings;}
 
 	int AddSourceTree(std::string);
+	int AddSizeVar(std::string s);
 	int AddSourceVar(std::string, std::string);
 	int AddSourceCut(std::string, std::string);
 	int AddTargetVar(std::string, std::string);

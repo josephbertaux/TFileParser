@@ -247,13 +247,25 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		{
 			for(s = 0; s < size_vars[v]; s++)
 			{
+				b = false;
+
+				for(u = 0; u < source_args.getSize(); u++)
+				{
+					if(source_var_sizes[u] != source_size_vars[v])continue;
+					if(std::isnan(ReadVoidAddress(source_var_types[u], ptrs[u], s)))
+					{
+						b = true;
+						break;
+					}
+				}
+				if(b)continue;
+
 				for(u = 0; u < source_args.getSize(); u++)
 				{
 					if(source_var_sizes[u] != source_size_vars[v])continue;
 					((RooRealVar*)&(source_args[u]))->setVal(ReadVoidAddress(source_var_types[u], ptrs[u], s));
 				}
 
-				b = false;
 				for(u = 0; u < source_cuts.getSize(); u++)
 				{
 					if(((RooFormulaVar*)&(source_cuts[u]))->getValV() == 0.0)
@@ -263,6 +275,17 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 					}
 				}
 				if(b)continue;
+
+				for(u = 0; u < source_args.getSize(); u++)
+				{
+					if(std::isnan((RooFormulaVar*)&(target_cuts[u]))->getValV())
+					{
+						b = true;
+						break;
+					}
+				}
+				if(b)continue;
+
 				for(u = 0; u < target_cuts.getSize(); u++)
 				{
 					if(((RooFormulaVar*)&(target_cuts[u]))->getValV() == 0.0)

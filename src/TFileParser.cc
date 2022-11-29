@@ -278,7 +278,7 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 
 				for(u = 0; u < source_args.getSize(); u++)
 				{
-					if(std::isnan((RooFormulaVar*)&(target_cuts[u]))->getValV())
+					if(std::isnan(((RooFormulaVar*)&(target_cuts[u]))->getValV()))
 					{
 						b = true;
 						break;

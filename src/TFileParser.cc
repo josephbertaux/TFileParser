@@ -87,19 +87,33 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	output_str << "In file:" << std::endl;
 	output_str << "\t" << reader_file_name << std::endl;
 
+	if(w)
+	{
+		std::cout << std::endl;
+		std::cout << "In file:" << std::endl;
+		std::cout << "\t" << reader_file_name << std::endl;
+	}
+
 	for(u = 0; u < source_tree_names.size(); u++)
 	{
+		std::cout << "\t" << source_tree_names[u] << std::endl;
 		friend_tree = (TTree*)reader_file->Get(source_tree_names[u].c_str());
 		if(friend_tree)
 		{
-			if(reader_tree)reader_tree->AddFriend(friend_tree);
-			else reader_tree = friend_tree;
+			if(!reader_tree)	reader_tree = friend_tree;
+			else			reader_tree->AddFriend(friend_tree);
 		}
 		else
 		{
 			output_str << "\tCould not get tree:" << std::endl;
 			output_str << "\t\t" << source_tree_names[u] << std::endl;
 		}
+	}
+
+	if(!reader_tree)
+	{
+		return_val = 1;
+		goto label;
 	}
 
 	reader_tree->SetBranchStatus("*", 0);
@@ -121,6 +135,11 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 	}
 
+	if(w)
+	{
+		std::cout << "\tFetched size branches" << std::endl;
+	}
+
 	N = reader_tree->GetEntriesFast();
 	for(n = 0; n < N; n++)
 	{
@@ -128,6 +147,15 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		for(v = 0; v < source_size_vars.size(); v++)
 		{
 			if(size_vars[v] > max_sizes[v])max_sizes[v] = size_vars[v];
+		}
+	}
+
+	if(w)
+	{
+		std::cout << "\tFetched sizes" << std::endl;
+		for(v = 0; v < source_size_vars.size(); v++)
+		{
+			std::cout << "\t\t" << source_size_vars[v] << ":\t" << max_sizes[v] << std::endl;
 		}
 	}
 
@@ -179,6 +207,11 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	}
 	if(return_val)goto label;
 
+	if(w)
+	{
+		std::cout << "\tFetched all branches" << std::endl;
+	}
+
 	target_tree->ResetBranchAddresses();
 	for(u = 0; u < target_var_names.size(); u++)
 	{
@@ -195,6 +228,11 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 	}
 	if(return_val)goto label;
+
+	if(w)
+	{
+		std::cout << "\tAll branches found, beginning reading..." << std::endl;
+	}
 
 	N = reader_tree->GetEntriesFast();
 	for(n = 0; n < N; n++)

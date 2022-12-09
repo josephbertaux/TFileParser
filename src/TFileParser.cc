@@ -96,7 +96,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 
 	for(u = 0; u < source_tree_names.size(); u++)
 	{
-		std::cout << "\t" << source_tree_names[u] << std::endl;
 		friend_tree = (TTree*)reader_file->Get(source_tree_names[u].c_str());
 		if(friend_tree)
 		{
@@ -135,11 +134,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		}
 	}
 
-	if(w)
-	{
-		std::cout << "\tFetched size branches" << std::endl;
-	}
-
 	N = reader_tree->GetEntriesFast();
 	for(n = 0; n < N; n++)
 	{
@@ -147,15 +141,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 		for(v = 0; v < source_size_vars.size(); v++)
 		{
 			if(size_vars[v] > max_sizes[v])max_sizes[v] = size_vars[v];
-		}
-	}
-
-	if(w)
-	{
-		std::cout << "\tFetched sizes" << std::endl;
-		for(v = 0; v < source_size_vars.size(); v++)
-		{
-			std::cout << "\t\t" << source_size_vars[v] << ":\t" << max_sizes[v] << std::endl;
 		}
 	}
 
@@ -207,11 +192,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 	}
 	if(return_val)goto label;
 
-	if(w)
-	{
-		std::cout << "\tFetched all branches" << std::endl;
-	}
-
 	target_tree->ResetBranchAddresses();
 	for(u = 0; u < target_var_names.size(); u++)
 	{
@@ -251,21 +231,22 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 
 				for(u = 0; u < source_args.getSize(); u++)
 				{
-					if(source_var_sizes[u] != source_size_vars[v])continue;
 					if(std::isnan(ReadVoidAddress(source_var_types[u], ptrs[u], s)))
 					{
+						if(w)
+						{
+							std::cout << "\t\tEntry: " << n << "\t\tInstance: " << s << "\t\tVar: " << source_var_names[u] << " is NaN" << std::endl;
+						}
 						b = true;
 						break;
 					}
 				}
 				if(b)continue;
-
 				for(u = 0; u < source_args.getSize(); u++)
 				{
 					if(source_var_sizes[u] != source_size_vars[v])continue;
 					((RooRealVar*)&(source_args[u]))->setVal(ReadVoidAddress(source_var_types[u], ptrs[u], s));
 				}
-
 				for(u = 0; u < source_cuts.getSize(); u++)
 				{
 					if(((RooFormulaVar*)&(source_cuts[u]))->getValV() == 0.0)
@@ -285,7 +266,6 @@ int TFileParser::UpdateNtuple(TTree* target_tree, std::string reader_file_name, 
 					}
 				}
 				if(b)continue;
-
 				for(u = 0; u < target_cuts.getSize(); u++)
 				{
 					if(((RooFormulaVar*)&(target_cuts[u]))->getValV() == 0.0)
